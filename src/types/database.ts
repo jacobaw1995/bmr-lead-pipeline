@@ -1,0 +1,187 @@
+export type UserRole = "salesman" | "manager";
+
+export type LeadSource = "webhook" | "manual" | "referral";
+
+export type LeadStage =
+  | "lead_captured"
+  | "qualified"
+  | "proposal_sent"
+  | "negotiating"
+  | "closed";
+
+export type LeadStatus = "active" | "closed_won" | "closed_lost";
+
+export type ActivityAction =
+  | "created"
+  | "stage_changed"
+  | "status_changed"
+  | "reassigned"
+  | "value_set"
+  | "edited";
+
+export interface Profile {
+  id: string;
+  full_name: string;
+  email: string;
+  role: UserRole;
+  monthly_close_goal: number | null;
+  created_at: string;
+}
+
+export interface Lead {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  source: LeadSource;
+  stage: LeadStage;
+  status: LeadStatus;
+  value: number | null;
+  owner_id: string | null;
+  lost_reason: string | null;
+  closed_won_project_created: boolean;
+  created_at: string;
+  updated_at: string;
+  closed_at: string | null;
+}
+
+export interface LeadNote {
+  id: string;
+  lead_id: string;
+  author_id: string;
+  content: string;
+  created_at: string;
+}
+
+export interface LeadActivity {
+  id: string;
+  lead_id: string;
+  actor_id: string;
+  action: ActivityAction;
+  from_value: string | null;
+  to_value: string | null;
+  created_at: string;
+}
+
+export type Database = {
+  public: {
+    Tables: {
+      profiles: {
+        Row: Profile;
+        Insert: {
+          id: string;
+          full_name: string;
+          email: string;
+          role?: UserRole;
+          created_at?: string;
+        };
+        Update: Partial<Omit<Profile, "id">>;
+        Relationships: [];
+      };
+      leads: {
+        Row: Lead;
+        Insert: {
+          id?: string;
+          name: string;
+          phone?: string | null;
+          email?: string | null;
+          address?: string | null;
+          source?: LeadSource;
+          stage?: LeadStage;
+          status?: LeadStatus;
+          value?: number | null;
+          owner_id?: string | null;
+          lost_reason?: string | null;
+          closed_won_project_created?: boolean;
+          created_at?: string;
+          updated_at?: string;
+          closed_at?: string | null;
+        };
+        Update: Partial<Omit<Lead, "id">>;
+        Relationships: [
+          {
+            foreignKeyName: "leads_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      lead_notes: {
+        Row: LeadNote;
+        Insert: {
+          id?: string;
+          lead_id: string;
+          author_id: string;
+          content: string;
+          created_at?: string;
+        };
+        Update: Partial<Omit<LeadNote, "id">>;
+        Relationships: [
+          {
+            foreignKeyName: "lead_notes_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "lead_notes_author_id_fkey";
+            columns: ["author_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      lead_activity: {
+        Row: LeadActivity;
+        Insert: {
+          id?: string;
+          lead_id: string;
+          actor_id: string;
+          action: ActivityAction;
+          from_value?: string | null;
+          to_value?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Omit<LeadActivity, "id">>;
+        Relationships: [
+          {
+            foreignKeyName: "lead_activity_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "lead_activity_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+    };
+    Views: Record<string, never>;
+    Functions: {
+      my_closes_this_month: { Args: Record<string, never>; Returns: number };
+      my_win_rate: { Args: Record<string, never>; Returns: number };
+      my_avg_cycle_days: { Args: Record<string, never>; Returns: number };
+      my_open_pipeline_value: { Args: Record<string, never>; Returns: number };
+      my_active_lead_count: { Args: Record<string, never>; Returns: number };
+      is_manager: { Args: Record<string, never>; Returns: boolean };
+    };
+    Enums: {
+      user_role: UserRole;
+      lead_source: LeadSource;
+      lead_stage: LeadStage;
+      lead_status: LeadStatus;
+      activity_action: ActivityAction;
+    };
+    CompositeTypes: Record<string, never>;
+  };
+};

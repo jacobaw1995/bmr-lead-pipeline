@@ -9,8 +9,18 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+        field: {
+          turf: "#1a5c2e",
+          "turf-dark": "#0f3d1e",
+          dark: "#0d2818",
+          line: "#e8e4d4",
+          cream: "#f5f0e1",
+          gold: "#d4a843",
+          sage: "#8ba888",
+        },
+      },
+      fontFamily: {
+        sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
       },
     },
   },

@@ -3,25 +3,50 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --field-turf: #1a5c2e;
+  --field-turf-dark: #0f3d1e;
+  --field-dark: #0d2818;
+  --field-line: #e8e4d4;
+  --field-cream: #f5f0e1;
+  --field-gold: #d4a843;
+  --field-sage: #8ba888;
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--field-cream);
+  background: var(--field-turf);
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  .field-pattern {
+    background-color: var(--field-turf);
+    background-image:
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 49px,
+        rgba(232, 228, 212, 0.08) 49px,
+        rgba(232, 228, 212, 0.08) 50px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 99px,
+        rgba(232, 228, 212, 0.05) 99px,
+        rgba(232, 228, 212, 0.05) 100px
+      );
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0);
   }
 }
