@@ -1,4 +1,4 @@
-import { STAGE_LABELS, SOURCE_LABELS } from "@/lib/leads/constants";
+import { STAGE_LABELS, getSourceDisplayLabel } from "@/lib/leads/constants";
 import {
   formatCurrency,
   formatCycleDays,
@@ -44,7 +44,7 @@ export function ClosedLeadCard({
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-semibold text-field-cream">{lead.name}</h3>
         <span className="shrink-0 text-[10px] uppercase tracking-wide text-field-cream/40">
-          {SOURCE_LABELS[lead.source]}
+          {getSourceDisplayLabel(lead.source)}
         </span>
       </div>
 

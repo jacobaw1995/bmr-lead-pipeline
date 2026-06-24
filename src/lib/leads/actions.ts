@@ -13,7 +13,9 @@ import {
 } from "@/lib/leads/milestones";
 import type { AppointmentType } from "@/types/database";
 import { canEditLead } from "@/lib/leads/permissions";
-import type { LeadSource, LeadStage } from "@/types/database";
+import { normalizeImportedSource, resolveLeadSource } from "@/lib/leads/sources";
+import type { CsvLeadRow } from "@/lib/leads/csv";
+import type { LeadStage } from "@/types/database";
 
 export interface CreateLeadInput {
   name: string;
@@ -23,12 +25,19 @@ export interface CreateLeadInput {
   city?: string;
   state?: string;
   zip?: string;
-  source?: LeadSource;
+  sourcePicked?: string;
+  customSource?: string;
+  /** Resolved source string (import/API use) */
+  source?: string;
+  /** Manager CSV import — lands unclaimed in Lead Box */
+  unclaimed?: boolean;
+  /** Optional note (CSV import, etc.) */
+  notes?: string;
 }
 
 export async function createLead(
   input: CreateLeadInput
-): Promise<{ success: true } | { success: false; error: string }> {
+): Promise<{ success: true; leadId: string } | { success: false; error: string }> {
   const name = input.name.trim();
   if (!name) {
     return { success: false, error: "Name is required." };
@@ -41,6 +50,14 @@ export async function createLead(
 
   if (!user) {
     return { success: false, error: "You must be signed in to add a lead." };
+  }
+
+  const source =
+    input.source ??
+    resolveLeadSource(input.sourcePicked ?? "Phone Call", input.customSource);
+
+  if (!source) {
+    return { success: false, error: "Enter a custom lead source or pick a standard one." };
   }
 
   const addr = normalizeAddress(input);
@@ -63,10 +80,10 @@ export async function createLead(
       city: addr.city,
       state: addr.state,
       zip: addr.zip,
-      source: input.source ?? "manual",
+      source,
       stage: "lead_captured",
       status: "active",
-      owner_id: user.id,
+      owner_id: input.unclaimed ? null : user.id,
     })
     .select("id")
     .single();
@@ -82,11 +99,23 @@ export async function createLead(
     lead_id: lead.id,
     actor_id: user.id,
     action: "created",
+    from_value: input.unclaimed ? "csv_import" : null,
     to_value: "lead_captured",
   });
 
+  const noteText = input.notes?.trim();
+  if (noteText) {
+    await supabase.from("lead_notes").insert({
+      lead_id: lead.id,
+      author_id: user.id,
+      content: input.unclaimed
+        ? `[CSV import]\n${noteText}`
+        : noteText,
+    });
+  }
+
   revalidatePath("/", "layout");
-  return { success: true };
+  return { success: true, leadId: lead.id };
 }
 
 export async function moveLeadStage(
@@ -863,4 +892,75 @@ export async function fetchLeadAppointments(
   }
 
   return data ?? [];
+}
+
+export interface ImportLeadsResult {
+  imported: number;
+  skipped: number;
+  errors: string[];
+}
+
+export async function importLeadsFromCsv(
+  rows: CsvLeadRow[]
+): Promise<
+  { success: true; result: ImportLeadsResult } | { success: false; error: string }
+> {
+  if (!rows.length) {
+    return { success: false, error: "No leads to import." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "You must be signed in." };
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "manager") {
+    return { success: false, error: "Only managers can import leads." };
+  }
+
+  let imported = 0;
+  const errors: string[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const result = await createLead({
+      name: row.name,
+      phone: row.phone,
+      email: row.email,
+      streetAddress: row.streetAddress,
+      city: row.city,
+      state: row.state,
+      zip: row.zip,
+      source: normalizeImportedSource(row.source),
+      unclaimed: true,
+      notes: row.notes,
+    });
+
+    if (!result.success) {
+      errors.push(`Row ${i + 2} (${row.name}): ${result.error}`);
+      continue;
+    }
+    imported++;
+  }
+
+  revalidatePath("/", "layout");
+
+  return {
+    success: true,
+    result: {
+      imported,
+      skipped: rows.length - imported,
+      errors,
+    },
+  };
 }

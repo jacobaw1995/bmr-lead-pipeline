@@ -6,7 +6,7 @@ import {
 import { getMilestoneProgress } from "@/lib/leads/milestones";
 import { phoneTelHref } from "@/lib/leads/phone";
 import type { LeadWithOwner } from "@/lib/leads/types";
-import { SOURCE_LABELS } from "@/lib/leads/constants";
+import { getSourceDisplayLabel } from "@/lib/leads/constants";
 import type { LeadStage } from "@/types/database";
 import { LeadCardInlineValue } from "./LeadCardInlineValue";
 
@@ -62,7 +62,7 @@ export function LeadCard({
           {lead.name}
         </h3>
         <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide bg-field-turf/40 text-field-cream/60">
-          {SOURCE_LABELS[lead.source]}
+          {getSourceDisplayLabel(lead.source)}
         </span>
       </div>
 

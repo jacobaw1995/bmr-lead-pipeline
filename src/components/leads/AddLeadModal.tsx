@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createLead } from "@/lib/leads/actions";
-import { LEAD_SOURCES } from "@/lib/leads/constants";
-import type { LeadSource } from "@/types/database";
+import { LeadSourcePicker } from "./LeadSourcePicker";
 
 interface AddLeadModalProps {
   open: boolean;
@@ -20,7 +19,8 @@ export function AddLeadModal({ open, onClose }: AddLeadModalProps) {
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [zip, setZip] = useState("");
-  const [source, setSource] = useState<LeadSource>("manual");
+  const [sourcePicked, setSourcePicked] = useState("Phone Call");
+  const [customSource, setCustomSource] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -34,7 +34,8 @@ export function AddLeadModal({ open, onClose }: AddLeadModalProps) {
       setCity("");
       setState("");
       setZip("");
-      setSource("manual");
+      setSourcePicked("Phone Call");
+      setCustomSource("");
       setError(null);
       setTimeout(() => nameRef.current?.focus(), 50);
     }
@@ -64,7 +65,8 @@ export function AddLeadModal({ open, onClose }: AddLeadModalProps) {
       city,
       state,
       zip,
-      source,
+      sourcePicked,
+      customSource,
     });
 
     if (!result.success) {
@@ -175,19 +177,12 @@ export function AddLeadModal({ open, onClose }: AddLeadModalProps) {
             </Field>
           </div>
 
-          <Field label="Source">
-            <select
-              value={source}
-              onChange={(e) => setSource(e.target.value as LeadSource)}
-              className={inputClass}
-            >
-              {LEAD_SOURCES.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <LeadSourcePicker
+            picked={sourcePicked}
+            customSource={customSource}
+            onPickedChange={setSourcePicked}
+            onCustomChange={setCustomSource}
+          />
 
           <div className="flex gap-3 pt-2">
             <button

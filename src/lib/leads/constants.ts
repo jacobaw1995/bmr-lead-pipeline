@@ -1,15 +1,9 @@
-import type { LeadSource, LeadStage } from "@/types/database";
+import { formatSourceLabel } from "@/lib/leads/sources";
+import type { LeadStage } from "@/types/database";
 
-export const LEAD_SOURCES: { value: LeadSource; label: string }[] = [
-  { value: "manual", label: "Manual" },
-  { value: "referral", label: "Referral" },
-];
-
-export const SOURCE_LABELS: Record<LeadSource, string> = {
-  manual: "Manual",
-  referral: "Referral",
-  webhook: "Webhook",
-};
+export function getSourceDisplayLabel(source: string | null | undefined): string {
+  return formatSourceLabel(source);
+}
 
 export const PIPELINE_STAGES: { key: LeadStage; label: string }[] = [
   { key: "lead_captured", label: "Lead Captured" },

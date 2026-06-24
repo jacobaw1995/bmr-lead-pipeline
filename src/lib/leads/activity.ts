@@ -37,6 +37,9 @@ export function formatActivityDescription(activity: ActivityWithActor): string {
 
   switch (activity.action) {
     case "created":
+      if (activity.from_value === "csv_import") {
+        return `${actor} imported this lead from CSV`;
+      }
       return `${actor} created this lead`;
     case "stage_changed":
       return `${actor} moved from ${formatStage(activity.from_value)} to ${formatStage(activity.to_value)}`;

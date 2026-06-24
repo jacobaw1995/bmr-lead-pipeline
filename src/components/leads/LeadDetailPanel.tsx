@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { fetchLeadHistory } from "@/lib/leads/actions";
 import { formatFullAddress } from "@/lib/leads/address";
 import { phoneTelHref } from "@/lib/leads/phone";
-import { SOURCE_LABELS, STAGE_LABELS } from "@/lib/leads/constants";
+import { STAGE_LABELS, getSourceDisplayLabel } from "@/lib/leads/constants";
 import { canEditLead } from "@/lib/leads/permissions";
 import { formatTimestamp } from "@/lib/leads/format";
 import type { LeadHistory, LeadWithOwner } from "@/lib/leads/types";
@@ -124,7 +124,7 @@ export function LeadDetailPanel({
                   {STAGE_LABELS[lead.stage]}
                 </span>
                 <span className="text-xs px-2 py-0.5 rounded bg-field-turf/30 text-field-cream/70">
-                  {SOURCE_LABELS[lead.source]}
+                  {getSourceDisplayLabel(lead.source)}
                 </span>
                 {!isActive && (
                   <span

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { ImportLeadsCsv } from "@/components/manager/ImportLeadsCsv";
 import { TeamOverview } from "@/components/manager/TeamOverview";
 import { TeamScheduleToday } from "@/components/manager/TeamScheduleToday";
 import { getTeamOverview } from "@/lib/manager/queries";
@@ -38,6 +39,7 @@ export default async function ManagerPage() {
         </div>
 
         <div className="space-y-8">
+          <ImportLeadsCsv />
           <TeamScheduleToday appointments={teamSchedule} />
           <TeamOverview data={overview} />
         </div>

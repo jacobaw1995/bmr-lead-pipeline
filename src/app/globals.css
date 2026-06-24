@@ -2,38 +2,57 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --field-turf: #1a5c2e;
-  --field-turf-dark: #0f3d1e;
-  --field-dark: #0d2818;
-  --field-line: #e8e4d4;
-  --field-cream: #f5f0e1;
-  --field-gold: #d4a843;
-  --field-sage: #8ba888;
+:root,
+[data-theme="dark"] {
+  --color-field-turf: 26 92 46;
+  --color-field-turf-dark: 15 61 30;
+  --color-field-dark: 13 40 24;
+  --color-field-line: 232 228 212;
+  --color-field-cream: 245 240 225;
+  --color-field-gold: 212 168 67;
+  --color-field-sage: 139 168 136;
+}
+
+[data-theme="light"] {
+  --color-field-turf: 232 240 234;
+  --color-field-turf-dark: 212 228 218;
+  --color-field-dark: 255 255 255;
+  --color-field-line: 180 176 164;
+  --color-field-cream: 26 40 32;
+  --color-field-gold: 160 120 8;
+  --color-field-sage: 74 110 74;
+}
+
+html {
+  color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
 }
 
 body {
-  color: var(--field-cream);
-  background: var(--field-turf);
+  color: rgb(var(--color-field-cream));
+  background: rgb(var(--color-field-turf));
 }
 
 @layer utilities {
   .field-pattern {
-    background-color: var(--field-turf);
+    background-color: rgb(var(--color-field-turf));
     background-image:
       repeating-linear-gradient(
         0deg,
         transparent,
         transparent 49px,
-        rgba(232, 228, 212, 0.08) 49px,
-        rgba(232, 228, 212, 0.08) 50px
+        rgba(var(--color-field-line), 0.12) 49px,
+        rgba(var(--color-field-line), 0.12) 50px
       ),
       repeating-linear-gradient(
         90deg,
         transparent,
         transparent 99px,
-        rgba(232, 228, 212, 0.05) 99px,
-        rgba(232, 228, 212, 0.05) 100px
+        rgba(var(--color-field-line), 0.08) 99px,
+        rgba(var(--color-field-line), 0.08) 100px
       );
   }
 

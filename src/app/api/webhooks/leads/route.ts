@@ -70,7 +70,7 @@ export async function POST(request: Request) {
         city: addr.city,
         state: addr.state,
         zip: addr.zip,
-        source: "webhook",
+        source: "Website",
         stage: "lead_captured",
         status: "active",
         owner_id: null,

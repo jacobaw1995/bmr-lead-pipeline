@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { href: "/winners", label: "Winner's Circle", icon: "🏆" },
   { href: "/lost", label: "Lost Zone", icon: "📋" },
   { href: "/office", label: "Coach's Office", icon: "📊" },
+  { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
 
 export function AppNav({ profile }: AppNavProps) {

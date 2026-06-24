@@ -1,6 +1,9 @@
 export type UserRole = "salesman" | "manager";
 
-export type LeadSource = "webhook" | "manual" | "referral";
+/** Free text — standard picks from STANDARD_LEAD_SOURCES or custom entry */
+export type LeadSource = string;
+
+export type ThemePreference = "light" | "dark";
 
 export type LeadStage =
   | "lead_captured"
@@ -33,6 +36,7 @@ export interface Profile {
   email: string;
   role: UserRole;
   monthly_close_goal: number | null;
+  theme_preference?: ThemePreference;
   created_at: string;
 }
 
@@ -219,7 +223,6 @@ export type Database = {
     };
     Enums: {
       user_role: UserRole;
-      lead_source: LeadSource;
       lead_stage: LeadStage;
       lead_status: LeadStatus;
       activity_action: ActivityAction;
