@@ -1,3 +1,4 @@
+import { formatAppointmentDateTime } from "@/lib/leads/appointments";
 import { STAGE_LABELS } from "@/lib/leads/constants";
 
 function formatActivityCurrency(value: string): string {
@@ -57,14 +58,28 @@ export function formatActivityDescription(activity: ActivityWithActor): string {
       if (amount) return `${actor} set quote to ${amount}`;
       return `${actor} cleared the quote value`;
     }
-    case "edited":
-      if (activity.to_value === "completed" || activity.to_value === "cleared") {
-        const label = activity.from_value ?? "milestone";
-        return activity.to_value === "completed"
-          ? `${actor} completed ${label}`
-          : `${actor} cleared ${label}`;
+    case "edited": {
+      const label = activity.from_value ?? "step";
+      if (activity.to_value === "completed") {
+        return `${actor} completed ${label}`;
+      }
+      if (activity.to_value === "cleared") {
+        return `${actor} cleared ${label}`;
+      }
+      if (activity.to_value?.startsWith("scheduled:")) {
+        const when = activity.to_value.slice("scheduled:".length);
+        return `${actor} scheduled ${label} for ${formatAppointmentDateTime(when)}`;
+      }
+      if (activity.to_value?.startsWith("completed:")) {
+        const when = activity.to_value.slice("completed:".length);
+        return `${actor} completed ${label} (${formatAppointmentDateTime(when)})`;
+      }
+      if (activity.to_value?.startsWith("cancelled:")) {
+        const when = activity.to_value.slice("cancelled:".length);
+        return `${actor} cancelled ${label} (${formatAppointmentDateTime(when)})`;
       }
       return `${actor} edited lead details`;
+    }
     default:
       return `${actor} ${ACTION_LABELS[activity.action]}`;
   }

@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { TeamOverview } from "@/components/manager/TeamOverview";
+import { TeamScheduleToday } from "@/components/manager/TeamScheduleToday";
 import { getTeamOverview } from "@/lib/manager/queries";
+import { getTeamAppointmentsToday } from "@/lib/manager/schedule";
 import { getCurrentProfile } from "@/lib/supabase/profile";
 
 export const dynamic = "force-dynamic";
@@ -11,10 +13,13 @@ export default async function ManagerPage() {
   if (!profile) redirect("/login");
 
   if (profile.role !== "manager") {
-    redirect("/field");
+    redirect("/locker");
   }
 
-  const overview = await getTeamOverview();
+  const [overview, teamSchedule] = await Promise.all([
+    getTeamOverview(),
+    getTeamAppointmentsToday(),
+  ]);
 
   return (
     <div className="px-4 py-6 sm:py-8">
@@ -32,7 +37,10 @@ export default async function ManagerPage() {
           </p>
         </div>
 
-        <TeamOverview data={overview} />
+        <div className="space-y-8">
+          <TeamScheduleToday appointments={teamSchedule} />
+          <TeamOverview data={overview} />
+        </div>
       </div>
     </div>
   );

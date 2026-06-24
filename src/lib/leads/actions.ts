@@ -4,9 +4,14 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { formatFullAddress, normalizeAddress } from "@/lib/leads/address";
 import {
+  APPOINTMENT_TYPE_LABELS,
+  DEFAULT_APPOINTMENT_DURATION,
+} from "@/lib/leads/appointments";
+import {
   getMilestoneLabel,
   type MilestoneKey,
 } from "@/lib/leads/milestones";
+import type { AppointmentType } from "@/types/database";
 import { canEditLead } from "@/lib/leads/permissions";
 import type { LeadSource, LeadStage } from "@/types/database";
 
@@ -130,9 +135,18 @@ export async function moveLeadStage(
     };
   }
 
+  const now = new Date().toISOString();
+  const leadUpdate: Record<string, string> = {
+    stage: newStage,
+    last_contacted_at: now,
+  };
+  if (newStage === "proposal_sent" && lead.stage !== "proposal_sent") {
+    leadUpdate.proposal_sent_at = now;
+  }
+
   const { error: updateError } = await supabase
     .from("leads")
-    .update({ stage: newStage })
+    .update(leadUpdate)
     .eq("id", leadId);
 
   if (updateError) {
@@ -218,7 +232,10 @@ export async function setLeadValue(
 
   const { error: updateError } = await supabase
     .from("leads")
-    .update({ value: rounded })
+    .update({
+      value: rounded,
+      last_contacted_at: new Date().toISOString(),
+    })
     .eq("id", leadId);
 
   if (updateError) {
@@ -274,6 +291,11 @@ export async function addLeadNote(
   if (insertError) {
     return { success: false, error: insertError.message };
   }
+
+  await supabase
+    .from("leads")
+    .update({ last_contacted_at: new Date().toISOString() })
+    .eq("id", leadId);
 
   revalidatePath("/", "layout");
   return { success: true };
@@ -513,16 +535,43 @@ export async function claimLead(
 
 const MILESTONE_FIELDS: Record<
   MilestoneKey,
-  | "inspection_scheduled_at"
-  | "roof_scope_ordered_at"
-  | "site_survey_complete_at"
-  | "quote_presented_at"
+  "roof_scope_ordered_at" | "site_survey_complete_at" | "quote_presented_at"
 > = {
-  inspection_scheduled: "inspection_scheduled_at",
   roof_scope_ordered: "roof_scope_ordered_at",
   site_survey_complete: "site_survey_complete_at",
   quote_presented: "quote_presented_at",
 };
+
+async function assertLeadEditable(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  leadId: string,
+  userId: string
+) {
+  const { data: lead, error: fetchError } = await supabase
+    .from("leads")
+    .select("id, status, owner_id")
+    .eq("id", leadId)
+    .single();
+
+  if (fetchError || !lead) {
+    return { ok: false as const, error: "Lead not found." };
+  }
+
+  if (lead.status !== "active") {
+    return { ok: false as const, error: "This lead is closed." };
+  }
+
+  const role = await getActorRole(supabase, userId);
+
+  if (!canEditLead(lead, userId, role)) {
+    return {
+      ok: false as const,
+      error: "You can only edit leads you own. Managers can edit any lead.",
+    };
+  }
+
+  return { ok: true as const, lead };
+}
 
 export async function toggleMilestone(
   leadId: string,
@@ -538,45 +587,31 @@ export async function toggleMilestone(
     return { success: false, error: "You must be signed in." };
   }
 
-  const { data: lead, error: fetchError } = await supabase
+  const access = await assertLeadEditable(supabase, leadId, user.id);
+  if (!access.ok) return { success: false, error: access.error };
+
+  const field = MILESTONE_FIELDS[key];
+
+  const { data: current } = await supabase
     .from("leads")
-    .select(
-      "id, status, owner_id, inspection_scheduled_at, roof_scope_ordered_at, site_survey_complete_at, quote_presented_at"
-    )
+    .select(field)
     .eq("id", leadId)
     .single();
 
-  if (fetchError || !lead) {
-    return { success: false, error: "Lead not found." };
-  }
-
-  if (lead.status !== "active") {
-    return {
-      success: false,
-      error: "Milestones cannot be updated on a closed lead.",
-    };
-  }
-
-  const role = await getActorRole(supabase, user.id);
-
-  if (!canEditLead(lead, user.id, role)) {
-    return {
-      success: false,
-      error:
-        "You can only update milestones on leads you own. Managers can edit any lead.",
-    };
-  }
-
-  const field = MILESTONE_FIELDS[key];
-  const currentlyDone = lead[field] != null;
+  const currentlyDone =
+    current?.[field as keyof typeof current] != null;
 
   if (complete === currentlyDone) {
     return { success: true };
   }
 
+  const now = new Date().toISOString();
   const { error: updateError } = await supabase
     .from("leads")
-    .update({ [field]: complete ? new Date().toISOString() : null })
+    .update({
+      [field]: complete ? now : null,
+      last_contacted_at: now,
+    })
     .eq("id", leadId);
 
   if (updateError) {
@@ -593,4 +628,239 @@ export async function toggleMilestone(
 
   revalidateLeadPaths();
   return { success: true };
+}
+
+export async function scheduleAppointment(
+  leadId: string,
+  appointmentType: AppointmentType,
+  scheduledAt: string,
+  durationMinutes: number = DEFAULT_APPOINTMENT_DURATION
+): Promise<{ success: true } | { success: false; error: string }> {
+  const scheduledDate = new Date(scheduledAt);
+  if (isNaN(scheduledDate.getTime())) {
+    return { success: false, error: "Invalid date and time." };
+  }
+  if (scheduledDate.getTime() <= Date.now()) {
+    return { success: false, error: "Pick a future date and time." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "You must be signed in." };
+  }
+
+  const access = await assertLeadEditable(supabase, leadId, user.id);
+  if (!access.ok) return { success: false, error: access.error };
+
+  const ownerId = access.lead.owner_id ?? user.id;
+
+  const { data: conflict, error: conflictError } = await supabase.rpc(
+    "has_appointment_conflict",
+    {
+      p_owner_id: ownerId,
+      p_scheduled_at: scheduledDate.toISOString(),
+      p_duration_minutes: durationMinutes,
+      p_exclude_id: null,
+    }
+  );
+
+  if (conflictError) {
+    const hint = conflictError.message.includes("function")
+      ? "Run supabase/phase9_appointments.sql in Supabase."
+      : conflictError.message;
+    return { success: false, error: hint };
+  }
+
+  if (conflict) {
+    return {
+      success: false,
+      error: `You already have something scheduled during that ${durationMinutes}-minute window.`,
+    };
+  }
+
+  await supabase
+    .from("lead_appointments")
+    .update({
+      status: "cancelled",
+      cancelled_at: new Date().toISOString(),
+    })
+    .eq("lead_id", leadId)
+    .eq("appointment_type", appointmentType)
+    .eq("status", "scheduled");
+
+  const { error: insertError } = await supabase.from("lead_appointments").insert({
+    lead_id: leadId,
+    owner_id: ownerId,
+    appointment_type: appointmentType,
+    scheduled_at: scheduledDate.toISOString(),
+    duration_minutes: durationMinutes,
+    status: "scheduled",
+  });
+
+  if (insertError) {
+    return { success: false, error: insertError.message };
+  }
+
+  const label = APPOINTMENT_TYPE_LABELS[appointmentType];
+  await supabase.from("lead_activity").insert({
+    lead_id: leadId,
+    actor_id: user.id,
+    action: "edited",
+    from_value: label,
+    to_value: `scheduled:${scheduledDate.toISOString()}`,
+  });
+
+  await supabase
+    .from("leads")
+    .update({ last_contacted_at: new Date().toISOString() })
+    .eq("id", leadId);
+
+  revalidateLeadPaths();
+  return { success: true };
+}
+
+export async function completeAppointment(
+  appointmentId: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "You must be signed in." };
+  }
+
+  const { data: appointment, error: fetchError } = await supabase
+    .from("lead_appointments")
+    .select("id, lead_id, appointment_type, status, scheduled_at")
+    .eq("id", appointmentId)
+    .single();
+
+  if (fetchError || !appointment) {
+    return { success: false, error: "Appointment not found." };
+  }
+
+  if (appointment.status !== "scheduled") {
+    return { success: false, error: "This appointment is already finished." };
+  }
+
+  const access = await assertLeadEditable(supabase, appointment.lead_id, user.id);
+  if (!access.ok) return { success: false, error: access.error };
+
+  const now = new Date().toISOString();
+
+  const { error: updateError } = await supabase
+    .from("lead_appointments")
+    .update({ status: "completed", completed_at: now })
+    .eq("id", appointmentId);
+
+  if (updateError) {
+    return { success: false, error: updateError.message };
+  }
+
+  const leadUpdate: Record<string, string> = { last_contacted_at: now };
+  if (appointment.appointment_type === "site_survey") {
+    leadUpdate.site_survey_complete_at = now;
+  }
+
+  await supabase.from("leads").update(leadUpdate).eq("id", appointment.lead_id);
+
+  const aptType = appointment.appointment_type as AppointmentType;
+  const label = APPOINTMENT_TYPE_LABELS[aptType];
+  await supabase.from("lead_activity").insert({
+    lead_id: appointment.lead_id,
+    actor_id: user.id,
+    action: "edited",
+    from_value: label,
+    to_value: `completed:${appointment.scheduled_at}`,
+  });
+
+  revalidateLeadPaths();
+  return { success: true };
+}
+
+export async function cancelAppointment(
+  appointmentId: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "You must be signed in." };
+  }
+
+  const { data: appointment, error: fetchError } = await supabase
+    .from("lead_appointments")
+    .select("id, lead_id, appointment_type, status, scheduled_at")
+    .eq("id", appointmentId)
+    .single();
+
+  if (fetchError || !appointment) {
+    return { success: false, error: "Appointment not found." };
+  }
+
+  if (appointment.status !== "scheduled") {
+    return { success: false, error: "Only scheduled appointments can be cancelled." };
+  }
+
+  const access = await assertLeadEditable(supabase, appointment.lead_id, user.id);
+  if (!access.ok) return { success: false, error: access.error };
+
+  const now = new Date().toISOString();
+
+  const { error: updateError } = await supabase
+    .from("lead_appointments")
+    .update({ status: "cancelled", cancelled_at: now })
+    .eq("id", appointmentId);
+
+  if (updateError) {
+    return { success: false, error: updateError.message };
+  }
+
+  const cancelType = appointment.appointment_type as AppointmentType;
+  const label = APPOINTMENT_TYPE_LABELS[cancelType];
+  await supabase.from("lead_activity").insert({
+    lead_id: appointment.lead_id,
+    actor_id: user.id,
+    action: "edited",
+    from_value: label,
+    to_value: `cancelled:${appointment.scheduled_at}`,
+  });
+
+  revalidateLeadPaths();
+  return { success: true };
+}
+
+export async function fetchLeadAppointments(
+  leadId: string
+): Promise<
+  import("@/types/database").LeadAppointment[] | { error: string }
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be signed in." };
+  }
+
+  const { data, error } = await supabase
+    .from("lead_appointments")
+    .select("*")
+    .eq("lead_id", leadId)
+    .order("scheduled_at", { ascending: true });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  return data ?? [];
 }

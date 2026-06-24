@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchLeadHistory } from "@/lib/leads/actions";
 import { formatFullAddress } from "@/lib/leads/address";
+import { phoneTelHref } from "@/lib/leads/phone";
 import { SOURCE_LABELS, STAGE_LABELS } from "@/lib/leads/constants";
 import { canEditLead } from "@/lib/leads/permissions";
 import { formatTimestamp } from "@/lib/leads/format";
@@ -148,7 +149,20 @@ export function LeadDetailPanel({
           </div>
 
           <div className="mt-3 space-y-1 text-sm text-field-cream/60">
-            {lead.phone && <p>{lead.phone}</p>}
+            {lead.phone && (
+              <p>
+                {phoneTelHref(lead.phone) ? (
+                  <a
+                    href={phoneTelHref(lead.phone)}
+                    className="text-field-gold/90 hover:text-field-gold transition"
+                  >
+                    {lead.phone}
+                  </a>
+                ) : (
+                  lead.phone
+                )}
+              </p>
+            )}
             {lead.email && <p className="truncate">{lead.email}</p>}
             {fullAddress && <p>{fullAddress}</p>}
             <p className="text-xs text-field-cream/40 pt-1">

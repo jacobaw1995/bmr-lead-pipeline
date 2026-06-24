@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -29,12 +30,14 @@ import { PipelineColumn } from "./PipelineColumn";
 
 interface FieldBoardProps {
   initialLeads: LeadWithOwner[];
+  initialLeadId?: string | null;
   currentUserId: string;
   currentUserRole: UserRole;
 }
 
 export function FieldBoard({
   initialLeads,
+  initialLeadId = null,
   currentUserId,
   currentUserRole,
 }: FieldBoardProps) {
@@ -45,7 +48,15 @@ export function FieldBoard({
     setLeads(initialLeads);
   }, [initialLeads]);
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(
+    initialLeadId
+  );
+
+  useEffect(() => {
+    if (initialLeadId && leads.some((l) => l.id === initialLeadId)) {
+      setSelectedLeadId(initialLeadId);
+    }
+  }, [initialLeadId, leads]);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -133,6 +144,20 @@ export function FieldBoard({
       onDragCancel={handleDragCancel}
     >
       <div className="h-full flex flex-col">
+        <div className="bg-field-dark/50 border-b border-field-line/15 px-4 py-2">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+            <Link
+              href="/locker"
+              className="text-xs font-medium text-field-gold/80 hover:text-field-gold transition"
+            >
+              ← Locker Room
+            </Link>
+            <span className="text-[10px] uppercase tracking-wider text-field-cream/30">
+              The Field
+            </span>
+          </div>
+        </div>
+
         {(blockedMessage || errorMessage) && (
           <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 max-w-sm w-full mx-4">
             <div

@@ -11,6 +11,7 @@ interface AppNavProps {
 }
 
 const NAV_ITEMS = [
+  { href: "/locker", label: "Locker Room", icon: "🚪" },
   { href: "/field", label: "The Field", icon: "🏟️" },
   { href: "/winners", label: "Winner's Circle", icon: "🏆" },
   { href: "/lost", label: "Lost Zone", icon: "📋" },
@@ -41,7 +42,7 @@ export function AppNav({ profile }: AppNavProps) {
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <Link
-            href="/field"
+            href="/locker"
             className="flex items-center gap-2 shrink-0"
             onClick={() => setMenuOpen(false)}
           >

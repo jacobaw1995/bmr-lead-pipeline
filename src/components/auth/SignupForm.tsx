@@ -36,7 +36,7 @@ export function SignupForm() {
     }
 
     if (data.session) {
-      router.push("/field");
+      router.push("/locker");
       router.refresh();
       return;
     }

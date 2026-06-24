@@ -1,7 +1,14 @@
-import type { Lead, LeadActivity, LeadNote, Profile } from "@/types/database";
+import type {
+  Lead,
+  LeadActivity,
+  LeadAppointment,
+  LeadNote,
+  Profile,
+} from "@/types/database";
 
 export type LeadWithOwner = Lead & {
   owner: Pick<Profile, "id" | "full_name"> | null;
+  appointments?: LeadAppointment[];
 };
 
 export type NoteWithAuthor = LeadNote & {

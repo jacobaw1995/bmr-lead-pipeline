@@ -59,6 +59,7 @@ export function DraggableLeadCard({
       <LeadCard
         lead={lead}
         currentUserId={currentUserId}
+        canEdit={editable}
         isDragging={isDragging || selfDragging}
         onOpenDetail={() => onOpenDetail(lead)}
       />

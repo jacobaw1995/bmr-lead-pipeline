@@ -6,7 +6,11 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export default async function FieldPage() {
+export default async function FieldPage({
+  searchParams,
+}: {
+  searchParams: { lead?: string };
+}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -20,6 +24,7 @@ export default async function FieldPage() {
   return (
     <FieldBoard
       initialLeads={leads}
+      initialLeadId={searchParams.lead ?? null}
       currentUserId={user.id}
       currentUserRole={profile?.role ?? "salesman"}
     />

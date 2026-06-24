@@ -1,7 +1,41 @@
 import { createClient } from "@/lib/supabase/server";
-import type { ActivityWithActor, LeadHistory, LeadWithOwner, NoteWithAuthor } from "@/lib/leads/types";
+import type { LeadAppointment } from "@/types/database";
+import type {
+  ActivityWithActor,
+  LeadHistory,
+  LeadWithOwner,
+  NoteWithAuthor,
+} from "@/lib/leads/types";
 
 export type { LeadWithOwner, LeadHistory, NoteWithAuthor, ActivityWithActor };
+
+async function attachAppointments(
+  leads: LeadWithOwner[]
+): Promise<LeadWithOwner[]> {
+  if (leads.length === 0) return leads;
+
+  const supabase = await createClient();
+  const leadIds = leads.map((l) => l.id);
+
+  const { data: appointments } = await supabase
+    .from("lead_appointments")
+    .select("*")
+    .in("lead_id", leadIds)
+    .in("status", ["scheduled", "completed"])
+    .order("scheduled_at", { ascending: true });
+
+  const byLead = new Map<string, LeadAppointment[]>();
+  for (const apt of appointments ?? []) {
+    const list = byLead.get(apt.lead_id) ?? [];
+    list.push(apt as LeadAppointment);
+    byLead.set(apt.lead_id, list);
+  }
+
+  return leads.map((lead) => ({
+    ...lead,
+    appointments: byLead.get(lead.id) ?? [],
+  }));
+}
 
 export async function getActivePipelineLeads(): Promise<LeadWithOwner[]> {
   const supabase = await createClient();
@@ -14,7 +48,7 @@ export async function getActivePipelineLeads(): Promise<LeadWithOwner[]> {
 
   if (error || !data) return [];
 
-  return data as LeadWithOwner[];
+  return attachAppointments(data as LeadWithOwner[]);
 }
 
 export async function getLeadHistory(leadId: string): Promise<LeadHistory> {

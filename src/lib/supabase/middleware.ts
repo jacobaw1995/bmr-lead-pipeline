@@ -48,7 +48,7 @@ export async function updateSession(request: NextRequest) {
 
   if (user && isAuthRoute && !request.nextUrl.pathname.startsWith("/auth")) {
     const url = request.nextUrl.clone();
-    url.pathname = "/field";
+    url.pathname = "/locker";
     return NextResponse.redirect(url);
   }
 

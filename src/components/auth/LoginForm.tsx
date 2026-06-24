@@ -29,7 +29,7 @@ export function LoginForm() {
       return;
     }
 
-    router.push("/field");
+    router.push("/locker");
     router.refresh();
   }
 

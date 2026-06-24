@@ -1,12 +1,25 @@
 import { formatCityState } from "@/lib/leads/address";
+import {
+  formatAppointmentCardBadge,
+  getDisplayAppointment,
+} from "@/lib/leads/appointments";
+import { getMilestoneProgress } from "@/lib/leads/milestones";
+import { phoneTelHref } from "@/lib/leads/phone";
 import type { LeadWithOwner } from "@/lib/leads/types";
 import { SOURCE_LABELS } from "@/lib/leads/constants";
-import { formatCurrency } from "@/lib/leads/format";
-import { MILESTONES } from "@/lib/leads/milestones";
+import type { LeadStage } from "@/types/database";
+import { LeadCardInlineValue } from "./LeadCardInlineValue";
+
+const VALUE_STAGES: LeadStage[] = [
+  "proposal_sent",
+  "negotiating",
+  "closed",
+];
 
 interface LeadCardProps {
   lead: LeadWithOwner;
   currentUserId: string;
+  canEdit?: boolean;
   isDragging?: boolean;
   isOverlay?: boolean;
   onOpenDetail?: () => void;
@@ -15,6 +28,7 @@ interface LeadCardProps {
 export function LeadCard({
   lead,
   currentUserId,
+  canEdit = false,
   isDragging = false,
   isOverlay = false,
   onOpenDetail,
@@ -22,7 +36,12 @@ export function LeadCard({
   const isOwn = lead.owner_id === currentUserId;
   const isUnassigned = !lead.owner_id;
   const location = formatCityState(lead);
-  const milestoneDone = MILESTONES.filter((m) => lead[m.field] != null).length;
+  const progress = getMilestoneProgress(lead, lead.appointments);
+  const displayApt = getDisplayAppointment(lead.appointments);
+  const showValueInput =
+    canEdit &&
+    (VALUE_STAGES.includes(lead.stage) || lead.value != null);
+  const telHref = lead.phone ? phoneTelHref(lead.phone) : "";
 
   return (
     <div
@@ -47,33 +66,57 @@ export function LeadCard({
         </span>
       </div>
 
-      <div className="mt-2 space-y-0.5 text-xs text-field-cream/50">
-        {lead.phone && <p>{lead.phone}</p>}
+      <div className="mt-2 space-y-1 text-xs text-field-cream/50">
+        {lead.phone && telHref && !isOverlay ? (
+          <a
+            href={telHref}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="block text-field-cream/70 hover:text-field-gold transition"
+          >
+            {lead.phone}
+          </a>
+        ) : lead.phone ? (
+          <p>{lead.phone}</p>
+        ) : null}
         {location && <p className="truncate">{location}</p>}
-        {lead.value != null && (
-          <p className="text-field-gold/80 font-medium">
-            {formatCurrency(lead.value)}
-          </p>
+        {displayApt && (
+          <span
+            className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium ${
+              displayApt.overdue
+                ? "bg-red-950/50 text-red-300 border border-red-800/40"
+                : "bg-field-gold/15 text-field-gold/90 border border-field-gold/25"
+            }`}
+          >
+            {displayApt.overdue ? "⚠ " : "📅 "}
+            {formatAppointmentCardBadge(
+              displayApt.appointment.scheduled_at,
+              displayApt.appointment.appointment_type
+            )}
+          </span>
         )}
+        {showValueInput ? (
+          <LeadCardInlineValue
+            leadId={lead.id}
+            currentValue={lead.value}
+            canEdit={canEdit}
+          />
+        ) : lead.value != null ? (
+          <p className="text-field-gold/80 font-medium">
+            ${lead.value.toLocaleString()}
+          </p>
+        ) : null}
       </div>
 
-      {lead.status === "active" && milestoneDone > 0 && (
+      {lead.status === "active" && progress > 0 && (
         <div
-          className="mt-2 flex items-center gap-1"
-          title={`${milestoneDone} of ${MILESTONES.length} job steps done`}
+          className="mt-2 h-1 rounded-full bg-field-line/20 overflow-hidden"
+          title={`${progress}% job path complete`}
         >
-          {MILESTONES.map((milestone) => {
-            const done = lead[milestone.field] != null;
-            return (
-              <span
-                key={milestone.key}
-                className={`h-1.5 flex-1 rounded-full transition-colors ${
-                  done ? "bg-field-gold/70" : "bg-field-line/20"
-                }`}
-                aria-hidden
-              />
-            );
-          })}
+          <div
+            className="h-full rounded-full bg-field-gold/60 transition-all"
+            style={{ width: `${progress}%` }}
+          />
         </div>
       )}
 
@@ -99,9 +142,9 @@ export function LeadCard({
                 onOpenDetail();
               }}
               onPointerDown={(e) => e.stopPropagation()}
-              className="text-[10px] font-medium text-field-gold/80 hover:text-field-gold transition"
+              className="text-[10px] font-medium text-field-cream/40 hover:text-field-cream transition"
             >
-              Notes
+              Details
             </button>
           )}
           <span className="text-[10px] text-field-cream/30">

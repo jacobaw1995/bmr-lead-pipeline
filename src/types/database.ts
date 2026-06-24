@@ -19,6 +19,14 @@ export type ActivityAction =
   | "value_set"
   | "edited";
 
+export type AppointmentType = "inspection" | "site_survey";
+
+export type AppointmentStatus =
+  | "scheduled"
+  | "completed"
+  | "cancelled"
+  | "no_show";
+
 export interface Profile {
   id: string;
   full_name: string;
@@ -42,6 +50,8 @@ export interface Lead {
   roof_scope_ordered_at: string | null;
   site_survey_complete_at: string | null;
   quote_presented_at: string | null;
+  proposal_sent_at: string | null;
+  last_contacted_at: string | null;
   source: LeadSource;
   stage: LeadStage;
   status: LeadStatus;
@@ -70,6 +80,20 @@ export interface LeadActivity {
   from_value: string | null;
   to_value: string | null;
   created_at: string;
+}
+
+export interface LeadAppointment {
+  id: string;
+  lead_id: string;
+  owner_id: string;
+  appointment_type: AppointmentType;
+  scheduled_at: string;
+  duration_minutes: number;
+  status: AppointmentStatus;
+  notes: string | null;
+  created_at: string;
+  completed_at: string | null;
+  cancelled_at: string | null;
 }
 
 export type Database = {
@@ -103,6 +127,8 @@ export type Database = {
           roof_scope_ordered_at?: string | null;
           site_survey_complete_at?: string | null;
           quote_presented_at?: string | null;
+          proposal_sent_at?: string | null;
+          last_contacted_at?: string | null;
           source?: LeadSource;
           stage?: LeadStage;
           status?: LeadStatus;
