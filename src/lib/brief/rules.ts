@@ -1,7 +1,7 @@
 import { formatFullAddress } from "@/lib/leads/address";
 import {
   APPOINTMENT_TYPE_LABELS,
-  getActiveAppointment,
+  getSiteVisitAppointment,
   isAppointmentOverdue,
 } from "@/lib/leads/appointments";
 import type { AppointmentType, Lead, LeadAppointment } from "@/types/database";
@@ -110,8 +110,8 @@ export function buildLeadCoachItems(
       leadName: lead.name,
       message:
         days >= 2
-          ? `Survey was ${days} days ago — send ${lead.name} a proposal`
-          : `Survey done — send a proposal to ${lead.name}`,
+          ? `Site visit was ${days} days ago — send ${lead.name} a proposal`
+          : `Site visit done — send a proposal to ${lead.name}`,
       actionLabel: "Send proposal",
       href: fieldLeadHref(lead.id),
     });
@@ -153,12 +153,10 @@ export function buildLeadCoachItems(
   }
 
   if (lead.stage === "qualified") {
-    const hasSurveyScheduled = getActiveAppointment(
-      leadAppointments,
-      "site_survey"
-    );
+    const siteVisit = getSiteVisitAppointment(leadAppointments);
+    const hasVisitScheduled = siteVisit?.state === "scheduled";
     if (
-      !hasSurveyScheduled &&
+      !hasVisitScheduled &&
       !lead.site_survey_complete_at &&
       new Date(lead.updated_at) <= ctx.threeDaysAgo
     ) {
@@ -169,8 +167,8 @@ export function buildLeadCoachItems(
         priorityScore: 55,
         leadId: lead.id,
         leadName: lead.name,
-        message: `Still qualified — book a site survey for ${lead.name}`,
-        actionLabel: "Schedule survey",
+        message: `Still qualified — book a site visit for ${lead.name}`,
+        actionLabel: "Schedule visit",
         href: fieldLeadHref(lead.id),
       });
     }

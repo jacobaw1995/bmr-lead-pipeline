@@ -169,8 +169,18 @@ export async function moveLeadStage(
     stage: newStage,
     last_contacted_at: now,
   };
-  if (newStage === "proposal_sent" && lead.stage !== "proposal_sent") {
-    leadUpdate.proposal_sent_at = now;
+  if (newStage === "proposal_sent") {
+    const { data: timestamps } = await supabase
+      .from("leads")
+      .select("proposal_sent_at, quote_presented_at")
+      .eq("id", leadId)
+      .single();
+    if (!timestamps?.proposal_sent_at) {
+      leadUpdate.proposal_sent_at = now;
+    }
+    if (!timestamps?.quote_presented_at) {
+      leadUpdate.quote_presented_at = now;
+    }
   }
 
   const { error: updateError } = await supabase
@@ -621,26 +631,55 @@ export async function toggleMilestone(
 
   const field = MILESTONE_FIELDS[key];
 
+  type MilestoneRow = {
+    roof_scope_ordered_at?: string | null;
+    site_survey_complete_at?: string | null;
+    quote_presented_at?: string | null;
+    stage?: LeadStage;
+    proposal_sent_at?: string | null;
+  };
+
   const { data: current } = await supabase
     .from("leads")
-    .select(field)
+    .select(
+      key === "quote_presented"
+        ? "quote_presented_at, stage, proposal_sent_at"
+        : field
+    )
     .eq("id", leadId)
     .single();
 
-  const currentlyDone =
-    current?.[field as keyof typeof current] != null;
+  const row = current as MilestoneRow | null;
+  const currentlyDone = row?.[field] != null;
 
   if (complete === currentlyDone) {
     return { success: true };
   }
 
   const now = new Date().toISOString();
+  const updatePayload: Record<string, string | null> = {
+    [field]: complete ? now : null,
+    last_contacted_at: now,
+  };
+
+  if (key === "quote_presented" && complete) {
+    const stage = row?.stage;
+    const proposalStages: LeadStage[] = [
+      "proposal_sent",
+      "negotiating",
+      "closed",
+    ];
+    if (stage && !proposalStages.includes(stage)) {
+      updatePayload.stage = "proposal_sent";
+    }
+    if (!row?.proposal_sent_at) {
+      updatePayload.proposal_sent_at = now;
+    }
+  }
+
   const { error: updateError } = await supabase
     .from("leads")
-    .update({
-      [field]: complete ? now : null,
-      last_contacted_at: now,
-    })
+    .update(updatePayload)
     .eq("id", leadId);
 
   if (updateError) {
@@ -653,6 +692,210 @@ export async function toggleMilestone(
     action: "edited",
     from_value: getMilestoneLabel(key),
     to_value: complete ? "completed" : "cleared",
+  });
+
+  if (
+    key === "quote_presented" &&
+    complete &&
+    updatePayload.stage === "proposal_sent"
+  ) {
+    const previousStage = row?.stage;
+    if (previousStage && previousStage !== "proposal_sent") {
+      await supabase.from("lead_activity").insert({
+        lead_id: leadId,
+        actor_id: user.id,
+        action: "stage_changed",
+        from_value: previousStage,
+        to_value: "proposal_sent",
+      });
+    }
+  }
+
+  revalidateLeadPaths();
+  return { success: true };
+}
+
+export interface UpdateLeadDetailsInput {
+  name: string;
+  phone?: string;
+  email?: string;
+  streetAddress?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  sourcePicked?: string;
+  customSource?: string;
+}
+
+export async function updateLeadDetails(
+  leadId: string,
+  input: UpdateLeadDetailsInput
+): Promise<{ success: true } | { success: false; error: string }> {
+  const name = input.name.trim();
+  if (!name) {
+    return { success: false, error: "Name is required." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "You must be signed in." };
+  }
+
+  const access = await assertLeadEditable(supabase, leadId, user.id);
+  if (!access.ok) return { success: false, error: access.error };
+
+  const source = resolveLeadSource(
+    input.sourcePicked ?? "Phone Call",
+    input.customSource
+  );
+  if (!source) {
+    return {
+      success: false,
+      error: "Enter a custom lead source or pick a standard one.",
+    };
+  }
+
+  const addr = normalizeAddress(input);
+  const legacyAddress = formatFullAddress({
+    address: null,
+    street_address: addr.street_address,
+    city: addr.city,
+    state: addr.state,
+    zip: addr.zip,
+  });
+
+  const { error: updateError } = await supabase
+    .from("leads")
+    .update({
+      name,
+      phone: input.phone?.trim() || null,
+      email: input.email?.trim() || null,
+      address: legacyAddress,
+      street_address: addr.street_address,
+      city: addr.city,
+      state: addr.state,
+      zip: addr.zip,
+      source,
+      last_contacted_at: new Date().toISOString(),
+    })
+    .eq("id", leadId);
+
+  if (updateError) {
+    return { success: false, error: updateError.message };
+  }
+
+  await supabase.from("lead_activity").insert({
+    lead_id: leadId,
+    actor_id: user.id,
+    action: "edited",
+    from_value: "Contact details",
+    to_value: "updated",
+  });
+
+  revalidateLeadPaths();
+  return { success: true };
+}
+
+export async function fetchAssignableReps(): Promise<
+  | { success: true; reps: { id: string; full_name: string }[] }
+  | { success: false; error: string }
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "You must be signed in." };
+  }
+
+  const role = await getActorRole(supabase, user.id);
+  if (role !== "manager") {
+    return { success: false, error: "Only managers can reassign leads." };
+  }
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, full_name")
+    .order("full_name", { ascending: true });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, reps: data ?? [] };
+}
+
+export async function reassignLead(
+  leadId: string,
+  newOwnerId: string | null
+): Promise<{ success: true } | { success: false; error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "You must be signed in." };
+  }
+
+  const role = await getActorRole(supabase, user.id);
+  if (role !== "manager") {
+    return { success: false, error: "Only managers can reassign leads." };
+  }
+
+  const { data: lead, error: fetchError } = await supabase
+    .from("leads")
+    .select("id, status, owner_id")
+    .eq("id", leadId)
+    .single();
+
+  if (fetchError || !lead) {
+    return { success: false, error: "Lead not found." };
+  }
+
+  if (lead.status !== "active") {
+    return { success: false, error: "Only active leads can be reassigned." };
+  }
+
+  if (lead.owner_id === newOwnerId) {
+    return { success: true };
+  }
+
+  if (newOwnerId) {
+    const { data: rep } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", newOwnerId)
+      .single();
+
+    if (!rep) {
+      return { success: false, error: "Rep not found." };
+    }
+  }
+
+  const { error: updateError } = await supabase
+    .from("leads")
+    .update({
+      owner_id: newOwnerId,
+      last_contacted_at: new Date().toISOString(),
+    })
+    .eq("id", leadId);
+
+  if (updateError) {
+    return { success: false, error: updateError.message };
+  }
+
+  await supabase.from("lead_activity").insert({
+    lead_id: leadId,
+    actor_id: user.id,
+    action: "reassigned",
+    from_value: lead.owner_id ?? "unclaimed",
+    to_value: newOwnerId ?? "unclaimed",
   });
 
   revalidateLeadPaths();
@@ -711,6 +954,11 @@ export async function scheduleAppointment(
     };
   }
 
+  const typesToCancel =
+    appointmentType === "site_survey" || appointmentType === "inspection"
+      ? ["site_survey", "inspection"]
+      : [appointmentType];
+
   await supabase
     .from("lead_appointments")
     .update({
@@ -718,7 +966,7 @@ export async function scheduleAppointment(
       cancelled_at: new Date().toISOString(),
     })
     .eq("lead_id", leadId)
-    .eq("appointment_type", appointmentType)
+    .in("appointment_type", typesToCancel)
     .eq("status", "scheduled");
 
   const { error: insertError } = await supabase.from("lead_appointments").insert({
@@ -793,7 +1041,10 @@ export async function completeAppointment(
   }
 
   const leadUpdate: Record<string, string> = { last_contacted_at: now };
-  if (appointment.appointment_type === "site_survey") {
+  if (
+    appointment.appointment_type === "site_survey" ||
+    appointment.appointment_type === "inspection"
+  ) {
     leadUpdate.site_survey_complete_at = now;
   }
 

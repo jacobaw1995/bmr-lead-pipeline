@@ -8,8 +8,9 @@ import {
   toggleMilestone,
 } from "@/lib/leads/actions";
 import {
+  SITE_VISIT_APPOINTMENT_TYPE,
   formatAppointmentDateTime,
-  getActiveAppointment,
+  getSiteVisitAppointment,
 } from "@/lib/leads/appointments";
 import {
   SCHEDULABLE_STEPS,
@@ -18,7 +19,6 @@ import {
   type MilestoneKey,
 } from "@/lib/leads/milestones";
 import type { LeadWithOwner } from "@/lib/leads/types";
-import type { AppointmentType } from "@/types/database";
 import { ScheduleAppointmentModal } from "./ScheduleAppointmentModal";
 
 interface LeadMilestonesProps {
@@ -31,9 +31,8 @@ export function LeadMilestones({ lead, canEdit }: LeadMilestonesProps) {
   const appointments = lead.appointments ?? [];
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [scheduleType, setScheduleType] = useState<AppointmentType | null>(
-    null
-  );
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const siteVisit = getSiteVisitAppointment(appointments);
   const progress = getMilestoneProgress(lead, appointments);
 
   async function handleToggle(key: MilestoneKey, currentlyDone: boolean) {
@@ -116,21 +115,19 @@ export function LeadMilestones({ lead, canEdit }: LeadMilestonesProps) {
 
           <div className="space-y-2">
             {SCHEDULABLE_STEPS.map((step) => {
-              const active = getActiveAppointment(
-                appointments,
-                step.appointmentType
-              );
               const isLoading =
                 loading === step.key ||
-                (active && loading === active.id);
+                (siteVisit && loading === siteVisit.appointment.id);
 
               return (
                 <div
                   key={step.key}
                   className={`rounded-lg border p-3 ${
-                    active
+                    siteVisit?.state === "scheduled"
                       ? "border-field-gold/50 bg-field-gold/10"
-                      : "border-field-line/20 bg-field-dark/30"
+                      : siteVisit?.state === "completed"
+                        ? "border-field-sage/40 bg-field-sage/10"
+                        : "border-field-line/20 bg-field-dark/30"
                   }`}
                 >
                   <div className="flex items-start gap-3">
@@ -141,9 +138,18 @@ export function LeadMilestones({ lead, canEdit }: LeadMilestonesProps) {
                       <p className="text-sm font-semibold text-field-cream">
                         {step.label}
                       </p>
-                      {active ? (
+                      {siteVisit?.state === "scheduled" ? (
                         <p className="text-xs text-field-gold mt-0.5">
-                          {formatAppointmentDateTime(active.scheduled_at)}
+                          {formatAppointmentDateTime(
+                            siteVisit.appointment.scheduled_at
+                          )}
+                        </p>
+                      ) : siteVisit?.state === "completed" ? (
+                        <p className="text-xs text-field-sage mt-0.5">
+                          Completed ·{" "}
+                          {formatAppointmentDateTime(
+                            siteVisit.appointment.scheduled_at
+                          )}
                         </p>
                       ) : (
                         <p className="text-xs text-field-cream/40 mt-0.5">
@@ -155,20 +161,22 @@ export function LeadMilestones({ lead, canEdit }: LeadMilestonesProps) {
                           <button
                             type="button"
                             disabled={!!isLoading}
-                            onClick={() =>
-                              setScheduleType(step.appointmentType)
-                            }
+                            onClick={() => setScheduleOpen(true)}
                             className="text-xs font-medium text-field-gold hover:text-field-cream transition disabled:opacity-50"
                           >
-                            {active ? "Reschedule" : "Schedule"}
+                            {siteVisit?.state === "scheduled"
+                              ? "Reschedule"
+                              : "Schedule"}
                           </button>
-                          {active && (
+                          {siteVisit?.state === "scheduled" && (
                             <>
                               <button
                                 type="button"
                                 disabled={!!isLoading}
                                 onClick={() =>
-                                  handleCompleteAppointment(active.id)
+                                  handleCompleteAppointment(
+                                    siteVisit.appointment.id
+                                  )
                                 }
                                 className="text-xs font-medium text-field-cream/70 hover:text-field-cream transition disabled:opacity-50"
                               >
@@ -178,7 +186,9 @@ export function LeadMilestones({ lead, canEdit }: LeadMilestonesProps) {
                                 type="button"
                                 disabled={!!isLoading}
                                 onClick={() =>
-                                  handleCancelAppointment(active.id)
+                                  handleCancelAppointment(
+                                    siteVisit.appointment.id
+                                  )
                                 }
                                 className="text-xs font-medium text-field-cream/40 hover:text-field-sage transition disabled:opacity-50"
                               >
@@ -243,12 +253,12 @@ export function LeadMilestones({ lead, canEdit }: LeadMilestonesProps) {
         </div>
       </section>
 
-      {scheduleType && (
+      {scheduleOpen && (
         <ScheduleAppointmentModal
           open
           leadId={lead.id}
-          appointmentType={scheduleType}
-          onClose={() => setScheduleType(null)}
+          appointmentType={SITE_VISIT_APPOINTMENT_TYPE}
+          onClose={() => setScheduleOpen(false)}
           onScheduled={() => router.refresh()}
         />
       )}

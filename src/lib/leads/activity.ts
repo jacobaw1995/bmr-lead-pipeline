@@ -49,6 +49,9 @@ export function formatActivityDescription(activity: ActivityWithActor): string {
       if (activity.from_value === "unclaimed") {
         return `${actor} claimed this lead`;
       }
+      if (activity.to_value === "unclaimed") {
+        return `${actor} returned this lead to the pool`;
+      }
       return `${actor} reassigned this lead`;
     case "value_set": {
       const amount = activity.to_value
@@ -63,6 +66,9 @@ export function formatActivityDescription(activity: ActivityWithActor): string {
     }
     case "edited": {
       const label = activity.from_value ?? "step";
+      if (activity.from_value === "Contact details" && activity.to_value === "updated") {
+        return `${actor} updated contact details`;
+      }
       if (activity.to_value === "completed") {
         return `${actor} completed ${label}`;
       }

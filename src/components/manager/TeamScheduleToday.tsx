@@ -16,7 +16,7 @@ export function TeamScheduleToday({ appointments }: TeamScheduleTodayProps) {
       {appointments.length === 0 ? (
         <div className="rounded-xl border border-dashed border-field-line/25 bg-field-dark/30 p-5">
           <p className="text-sm text-field-cream/45">
-            No site visits or inspections on the team calendar today — good day
+            No site visits on the team calendar today — good day
             for prospecting and follow-ups.
           </p>
         </div>

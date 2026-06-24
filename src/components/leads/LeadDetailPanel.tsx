@@ -3,16 +3,18 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchLeadHistory } from "@/lib/leads/actions";
-import { formatFullAddress } from "@/lib/leads/address";
+import { formatFullAddress, mapsDirectionsUrl } from "@/lib/leads/address";
 import { phoneTelHref } from "@/lib/leads/phone";
 import { STAGE_LABELS, getSourceDisplayLabel } from "@/lib/leads/constants";
+import { formatCurrency, formatTimestamp } from "@/lib/leads/format";
 import { canEditLead } from "@/lib/leads/permissions";
-import { formatTimestamp } from "@/lib/leads/format";
 import type { LeadHistory, LeadWithOwner } from "@/lib/leads/types";
 import type { UserRole } from "@/types/database";
 import { ClaimLeadButton } from "./ClaimLeadButton";
 import { CloseLeadSection } from "./CloseLeadSection";
+import { LeadEditDetails } from "./LeadEditDetails";
 import { LeadMilestones } from "./LeadMilestones";
+import { LeadOwnerReassign } from "./LeadOwnerReassign";
 import { LeadValueSection } from "./LeadValueSection";
 import { LeadActivityTrail } from "./LeadActivityTrail";
 import { LeadNotes } from "./LeadNotes";
@@ -85,6 +87,7 @@ export function LeadDetailPanel({
   const isUnclaimed = isActive && !lead.owner_id;
   const canEdit = canEditLead(lead, currentUserId, currentUserRole);
   const canClose = isActive && canEdit;
+  const isManager = currentUserRole === "manager";
   const showValueSection =
     isActive &&
     canEdit &&
@@ -120,13 +123,11 @@ export function LeadDetailPanel({
                 {lead.name}
               </h2>
               <div className="flex flex-wrap gap-2 mt-1.5">
-                <span className="text-xs px-2 py-0.5 rounded bg-field-turf/30 text-field-cream/70">
-                  {STAGE_LABELS[lead.stage]}
-                </span>
-                <span className="text-xs px-2 py-0.5 rounded bg-field-turf/30 text-field-cream/70">
-                  {getSourceDisplayLabel(lead.source)}
-                </span>
-                {!isActive && (
+                {isActive ? (
+                  <span className="text-xs px-2 py-0.5 rounded bg-field-turf/30 text-field-cream/70">
+                    {STAGE_LABELS[lead.stage]}
+                  </span>
+                ) : (
                   <span
                     className={`text-xs px-2 py-0.5 rounded ${
                       lead.status === "closed_won"
@@ -135,6 +136,14 @@ export function LeadDetailPanel({
                     }`}
                   >
                     {lead.status === "closed_won" ? "Won" : "Lost"}
+                  </span>
+                )}
+                <span className="text-xs px-2 py-0.5 rounded bg-field-turf/30 text-field-cream/70">
+                  {getSourceDisplayLabel(lead.source)}
+                </span>
+                {!isActive && (
+                  <span className="text-xs px-2 py-0.5 rounded bg-field-dark/50 text-field-cream/45">
+                    Was {STAGE_LABELS[lead.stage]}
                   </span>
                 )}
               </div>
@@ -164,13 +173,37 @@ export function LeadDetailPanel({
               </p>
             )}
             {lead.email && <p className="truncate">{lead.email}</p>}
-            {fullAddress && <p>{fullAddress}</p>}
-            <p className="text-xs text-field-cream/40 pt-1">
-              Owner:{" "}
-              {lead.owner_id
-                ? lead.owner?.full_name ?? "Unknown"
-                : "Unclaimed"}
-            </p>
+            {fullAddress && (
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                <p>{fullAddress}</p>
+                <a
+                  href={mapsDirectionsUrl(fullAddress)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-medium text-field-gold hover:text-field-cream transition shrink-0"
+                >
+                  Directions →
+                </a>
+              </div>
+            )}
+            {isManager && isActive ? (
+              <LeadOwnerReassign
+                lead={lead}
+                onReassigned={() => router.refresh()}
+              />
+            ) : (
+              <p className="text-xs text-field-cream/40 pt-1">
+                Owner:{" "}
+                {lead.owner_id
+                  ? lead.owner?.full_name ?? "Unknown"
+                  : "Unclaimed"}
+              </p>
+            )}
+            {!isActive && lead.value != null && (
+              <p className="text-sm font-semibold text-field-gold pt-1">
+                {formatCurrency(lead.value)}
+              </p>
+            )}
             {lead.closed_at && (
               <p className="text-xs text-field-cream/40">
                 Closed {formatTimestamp(lead.closed_at)}
@@ -181,6 +214,14 @@ export function LeadDetailPanel({
                 <span className="font-medium">Coaching note: </span>
                 {lead.lost_reason}
               </p>
+            )}
+            {canEdit && isActive && (
+              <div className="pt-1">
+                <LeadEditDetails
+                  lead={lead}
+                  onUpdated={() => loadHistory(lead.id)}
+                />
+              </div>
             )}
           </div>
         </div>
@@ -196,9 +237,7 @@ export function LeadDetailPanel({
             <ClaimLeadButton leadId={lead.id} onClaimed={handleClaimed} />
           )}
 
-          {isActive && (
-            <LeadMilestones lead={lead} canEdit={canEdit} />
-          )}
+          {isActive && <LeadMilestones lead={lead} canEdit={canEdit} />}
 
           {showValueSection && (
             <LeadValueSection

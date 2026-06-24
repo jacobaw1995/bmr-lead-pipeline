@@ -11,6 +11,8 @@ interface LeadSourcePickerProps {
   onPickedChange: (value: string) => void;
   onCustomChange: (value: string) => void;
   optional?: boolean;
+  /** Unique radio group name when multiple pickers on one page */
+  groupName?: string;
 }
 
 export function LeadSourcePicker({
@@ -19,6 +21,7 @@ export function LeadSourcePicker({
   onPickedChange,
   onCustomChange,
   optional = false,
+  groupName = "lead-source",
 }: LeadSourcePickerProps) {
   return (
     <div>
@@ -40,7 +43,7 @@ export function LeadSourcePicker({
           >
             <input
               type="radio"
-              name="lead-source"
+              name={groupName}
               value={source}
               checked={picked === source}
               onChange={() => onPickedChange(source)}
@@ -58,7 +61,7 @@ export function LeadSourcePicker({
         >
           <input
             type="radio"
-            name="lead-source"
+            name={groupName}
             value={CUSTOM_SOURCE_VALUE}
             checked={picked === CUSTOM_SOURCE_VALUE}
             onChange={() => onPickedChange(CUSTOM_SOURCE_VALUE)}

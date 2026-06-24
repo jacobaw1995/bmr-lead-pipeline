@@ -2,14 +2,26 @@ import type { AppointmentType, LeadAppointment } from "@/types/database";
 
 export const DEFAULT_APPOINTMENT_DURATION = 90;
 
+/** Canonical type for new site-visit appointments (inspection is a legacy alias). */
+export const SITE_VISIT_APPOINTMENT_TYPE: AppointmentType = "site_survey";
+
+export const SITE_VISIT_APPOINTMENT_TYPES: AppointmentType[] = [
+  "site_survey",
+  "inspection",
+];
+
+export function isSiteVisitAppointmentType(type: AppointmentType): boolean {
+  return SITE_VISIT_APPOINTMENT_TYPES.includes(type);
+}
+
 export const APPOINTMENT_TYPE_LABELS: Record<AppointmentType, string> = {
-  inspection: "Inspection",
-  site_survey: "Site Survey",
+  inspection: "Site Visit",
+  site_survey: "Site Visit",
 };
 
 export const APPOINTMENT_TYPE_SHORT: Record<AppointmentType, string> = {
-  inspection: "Inspect",
-  site_survey: "Survey",
+  inspection: "Visit",
+  site_survey: "Visit",
 };
 
 export function formatAppointmentDateTime(iso: string): string {
@@ -89,6 +101,43 @@ export function getActiveAppointment(
       (a) => a.appointment_type === type && a.status === "scheduled"
     ) ?? null
   );
+}
+
+export type SiteVisitAppointmentState = "scheduled" | "completed";
+
+export function getSiteVisitAppointment(
+  appointments: LeadAppointment[] | undefined
+): { appointment: LeadAppointment; state: SiteVisitAppointmentState } | null {
+  if (!appointments?.length) return null;
+
+  const siteVisits = appointments.filter((a) =>
+    isSiteVisitAppointmentType(a.appointment_type)
+  );
+
+  const scheduled = siteVisits.find((a) => a.status === "scheduled");
+  if (scheduled) {
+    return { appointment: scheduled, state: "scheduled" };
+  }
+
+  const completed = siteVisits
+    .filter((a) => a.status === "completed")
+    .sort(
+      (a, b) =>
+        new Date(b.completed_at ?? b.scheduled_at).getTime() -
+        new Date(a.completed_at ?? a.scheduled_at).getTime()
+    );
+
+  if (completed[0]) {
+    return { appointment: completed[0], state: "completed" };
+  }
+
+  return null;
+}
+
+export function hasSiteVisitAppointment(
+  appointments: LeadAppointment[] | undefined
+): boolean {
+  return getSiteVisitAppointment(appointments) != null;
 }
 
 export function getNextScheduledAppointment(

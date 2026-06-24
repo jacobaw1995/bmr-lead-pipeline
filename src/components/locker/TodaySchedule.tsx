@@ -47,7 +47,7 @@ export function TodaySchedule({ appointments }: TodayScheduleProps) {
                 className={`flex items-start gap-3 rounded-lg border p-3 transition hover:bg-field-turf/15 ${borderClass}`}
               >
                 <span className="text-lg shrink-0" aria-hidden>
-                  {apt.isOverdue ? "⚠" : apt.appointmentType === "inspection" ? "📅" : "🏠"}
+                  {apt.isOverdue ? "⚠" : "🏠"}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-field-cream truncate">

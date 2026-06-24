@@ -41,6 +41,10 @@ export function formatFullAddress(
   return parts.length > 0 ? parts.join(", ") : null;
 }
 
+export function mapsDirectionsUrl(address: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+}
+
 export function formatCityState(
   lead: Pick<Lead, "city" | "state" | "zip">
 ): string | null {

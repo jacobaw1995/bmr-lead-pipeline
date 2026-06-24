@@ -37,6 +37,18 @@ export function formatSourceLabel(source: string | null | undefined): string {
   return source.trim();
 }
 
+export function sourceToPickerValues(source: string | null | undefined): {
+  picked: string;
+  customSource: string;
+} {
+  const trimmed = source?.trim() ?? "";
+  if (!trimmed) return { picked: "Phone Call", customSource: "" };
+  if (isStandardSource(trimmed)) {
+    return { picked: trimmed, customSource: "" };
+  }
+  return { picked: CUSTOM_SOURCE_VALUE, customSource: trimmed };
+}
+
 /** Match CSV/import text to a standard source when possible */
 export function normalizeImportedSource(raw: string | undefined): string {
   if (!raw?.trim()) return "Phone Call";

@@ -1,12 +1,12 @@
 import type { Lead, AppointmentType, LeadAppointment } from "@/types/database";
-import { getActiveAppointment } from "@/lib/leads/appointments";
+import { hasSiteVisitAppointment } from "@/lib/leads/appointments";
 
 export type MilestoneKey =
   | "roof_scope_ordered"
   | "site_survey_complete"
   | "quote_presented";
 
-export type SchedulableKey = "inspection_scheduled" | "site_survey_scheduled";
+export type SchedulableKey = "site_visit_scheduled";
 
 export interface MilestoneDef {
   key: MilestoneKey;
@@ -29,16 +29,9 @@ export interface SchedulableDef {
 
 export const SCHEDULABLE_STEPS: SchedulableDef[] = [
   {
-    key: "inspection_scheduled",
-    label: "Inspection Scheduled",
-    shortLabel: "Inspect",
-    icon: "📅",
-    appointmentType: "inspection",
-  },
-  {
-    key: "site_survey_scheduled",
-    label: "Site Survey Scheduled",
-    shortLabel: "Survey",
+    key: "site_visit_scheduled",
+    label: "Site Visit Scheduled",
+    shortLabel: "Visit",
     icon: "🏠",
     appointmentType: "site_survey",
   },
@@ -54,7 +47,7 @@ export const TOGGLE_MILESTONES: MilestoneDef[] = [
   },
   {
     key: "site_survey_complete",
-    label: "Site Survey Done",
+    label: "Site Visit Done",
     shortLabel: "Done",
     icon: "✓",
     field: "site_survey_complete_at",
@@ -68,21 +61,13 @@ export const TOGGLE_MILESTONES: MilestoneDef[] = [
   },
 ];
 
-export function isSchedulableDone(
-  appointments: LeadAppointment[] | undefined,
-  type: AppointmentType
-): boolean {
-  return getActiveAppointment(appointments, type) != null;
-}
-
 export function getMilestoneProgress(
   lead: Lead,
   appointments?: LeadAppointment[]
 ): number {
   const steps = [
-    isSchedulableDone(appointments, "inspection"),
+    hasSiteVisitAppointment(appointments),
     lead.roof_scope_ordered_at != null,
-    isSchedulableDone(appointments, "site_survey"),
     lead.site_survey_complete_at != null,
     lead.quote_presented_at != null ||
       lead.stage === "proposal_sent" ||
