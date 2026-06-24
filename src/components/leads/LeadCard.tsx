@@ -1,6 +1,8 @@
+import { formatCityState } from "@/lib/leads/address";
 import type { LeadWithOwner } from "@/lib/leads/types";
 import { SOURCE_LABELS } from "@/lib/leads/constants";
 import { formatCurrency } from "@/lib/leads/format";
+import { MILESTONES } from "@/lib/leads/milestones";
 
 interface LeadCardProps {
   lead: LeadWithOwner;
@@ -19,6 +21,8 @@ export function LeadCard({
 }: LeadCardProps) {
   const isOwn = lead.owner_id === currentUserId;
   const isUnassigned = !lead.owner_id;
+  const location = formatCityState(lead);
+  const milestoneDone = MILESTONES.filter((m) => lead[m.field] != null).length;
 
   return (
     <div
@@ -45,13 +49,33 @@ export function LeadCard({
 
       <div className="mt-2 space-y-0.5 text-xs text-field-cream/50">
         {lead.phone && <p>{lead.phone}</p>}
-        {lead.email && <p className="truncate">{lead.email}</p>}
+        {location && <p className="truncate">{location}</p>}
         {lead.value != null && (
           <p className="text-field-gold/80 font-medium">
             {formatCurrency(lead.value)}
           </p>
         )}
       </div>
+
+      {lead.status === "active" && milestoneDone > 0 && (
+        <div
+          className="mt-2 flex items-center gap-1"
+          title={`${milestoneDone} of ${MILESTONES.length} job steps done`}
+        >
+          {MILESTONES.map((milestone) => {
+            const done = lead[milestone.field] != null;
+            return (
+              <span
+                key={milestone.key}
+                className={`h-1.5 flex-1 rounded-full transition-colors ${
+                  done ? "bg-field-gold/70" : "bg-field-line/20"
+                }`}
+                aria-hidden
+              />
+            );
+          })}
+        </div>
+      )}
 
       <div className="mt-2 pt-2 border-t border-field-line/10 flex items-center justify-between gap-2">
         <div className="min-w-0">

@@ -16,7 +16,10 @@ export function AddLeadModal({ open, onClose }: AddLeadModalProps) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [address, setAddress] = useState("");
+  const [streetAddress, setStreetAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [zip, setZip] = useState("");
   const [source, setSource] = useState<LeadSource>("manual");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -27,7 +30,10 @@ export function AddLeadModal({ open, onClose }: AddLeadModalProps) {
       setName("");
       setPhone("");
       setEmail("");
-      setAddress("");
+      setStreetAddress("");
+      setCity("");
+      setState("");
+      setZip("");
       setSource("manual");
       setError(null);
       setTimeout(() => nameRef.current?.focus(), 50);
@@ -50,7 +56,16 @@ export function AddLeadModal({ open, onClose }: AddLeadModalProps) {
     setError(null);
     setLoading(true);
 
-    const result = await createLead({ name, phone, email, address, source });
+    const result = await createLead({
+      name,
+      phone,
+      email,
+      streetAddress,
+      city,
+      state,
+      zip,
+      source,
+    });
 
     if (!result.success) {
       setError(result.error);
@@ -71,7 +86,7 @@ export function AddLeadModal({ open, onClose }: AddLeadModalProps) {
         onClick={onClose}
       />
 
-      <div className="relative w-full max-w-md rounded-xl border border-field-line/30 bg-field-dark shadow-xl">
+      <div className="relative w-full max-w-md rounded-xl border border-field-line/30 bg-field-dark shadow-xl max-h-[90vh] overflow-y-auto">
         <div className="px-5 py-4 border-b border-field-line/20">
           <h2 className="text-lg font-semibold text-field-cream">Add a Lead</h2>
           <p className="text-xs text-field-cream/50 mt-0.5">
@@ -118,15 +133,47 @@ export function AddLeadModal({ open, onClose }: AddLeadModalProps) {
             />
           </Field>
 
-          <Field label="Address">
+          <Field label="Street address">
             <input
               type="text"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              value={streetAddress}
+              onChange={(e) => setStreetAddress(e.target.value)}
               className={inputClass}
-              placeholder="123 Main St, City, ST"
+              placeholder="123 Main St"
             />
           </Field>
+
+          <div className="grid grid-cols-6 gap-2">
+            <Field label="City" className="col-span-3">
+              <input
+                type="text"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                className={inputClass}
+                placeholder="Springfield"
+              />
+            </Field>
+            <Field label="State" className="col-span-1">
+              <input
+                type="text"
+                value={state}
+                onChange={(e) => setState(e.target.value.toUpperCase().slice(0, 2))}
+                className={inputClass}
+                placeholder="TN"
+                maxLength={2}
+              />
+            </Field>
+            <Field label="ZIP" className="col-span-2">
+              <input
+                type="text"
+                value={zip}
+                onChange={(e) => setZip(e.target.value)}
+                className={inputClass}
+                placeholder="37064"
+                maxLength={10}
+              />
+            </Field>
+          </div>
 
           <Field label="Source">
             <select
@@ -167,14 +214,16 @@ export function AddLeadModal({ open, onClose }: AddLeadModalProps) {
 function Field({
   label,
   required,
+  className,
   children,
 }: {
   label: string;
   required?: boolean;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div>
+    <div className={className}>
       <label className="block text-xs font-medium text-field-cream/70 mb-1">
         {label}
         {required && <span className="text-field-gold ml-0.5">*</span>}

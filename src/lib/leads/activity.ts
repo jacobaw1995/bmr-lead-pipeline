@@ -1,4 +1,14 @@
 import { STAGE_LABELS } from "@/lib/leads/constants";
+
+function formatActivityCurrency(value: string): string {
+  const num = parseFloat(value);
+  if (isNaN(num)) return value;
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(num);
+}
 import type { ActivityWithActor } from "@/lib/leads/types";
 import type { LeadStage } from "@/types/database";
 
@@ -36,11 +46,24 @@ export function formatActivityDescription(activity: ActivityWithActor): string {
         return `${actor} claimed this lead`;
       }
       return `${actor} reassigned this lead`;
-    case "value_set":
-      return activity.to_value
-        ? `${actor} set value to ${activity.to_value}`
-        : `${actor} updated deal value`;
+    case "value_set": {
+      const amount = activity.to_value
+        ? formatActivityCurrency(activity.to_value)
+        : null;
+      const prev = activity.from_value
+        ? formatActivityCurrency(activity.from_value)
+        : null;
+      if (amount && prev) return `${actor} updated quote from ${prev} to ${amount}`;
+      if (amount) return `${actor} set quote to ${amount}`;
+      return `${actor} cleared the quote value`;
+    }
     case "edited":
+      if (activity.to_value === "completed" || activity.to_value === "cleared") {
+        const label = activity.from_value ?? "milestone";
+        return activity.to_value === "completed"
+          ? `${actor} completed ${label}`
+          : `${actor} cleared ${label}`;
+      }
       return `${actor} edited lead details`;
     default:
       return `${actor} ${ACTION_LABELS[activity.action]}`;

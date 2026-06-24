@@ -3,6 +3,10 @@ export interface WebhookLeadPayload {
   phone?: string;
   email?: string;
   address?: string;
+  streetAddress?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
 }
 
 export interface ValidationResult {
@@ -13,6 +17,23 @@ export interface ValidationResult {
 export interface ValidationError {
   success: false;
   errors: string[];
+}
+
+const STRING_FIELDS = [
+  "name",
+  "phone",
+  "email",
+  "address",
+  "streetAddress",
+  "city",
+  "state",
+  "zip",
+] as const;
+
+const ALLOWED_KEYS = new Set(STRING_FIELDS);
+
+function trimOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 export function validateWebhookPayload(
@@ -29,34 +50,19 @@ export function validateWebhookPayload(
     errors.push('"name" is required and must be a non-empty string.');
   }
 
-  if (
-    record.phone !== undefined &&
-    record.phone !== null &&
-    typeof record.phone !== "string"
-  ) {
-    errors.push('"phone" must be a string when provided.');
+  for (const field of STRING_FIELDS) {
+    if (field === "name") continue;
+    const value = record[field];
+    if (value !== undefined && value !== null && typeof value !== "string") {
+      errors.push(`"${field}" must be a string when provided.`);
+    }
   }
 
-  if (
-    record.email !== undefined &&
-    record.email !== null &&
-    typeof record.email !== "string"
-  ) {
-    errors.push('"email" must be a string when provided.');
-  }
-
-  if (
-    record.address !== undefined &&
-    record.address !== null &&
-    typeof record.address !== "string"
-  ) {
-    errors.push('"address" must be a string when provided.');
-  }
-
-  const allowedKeys = new Set(["name", "phone", "email", "address"]);
   for (const key of Object.keys(record)) {
-    if (!allowedKeys.has(key)) {
-      errors.push(`Unknown field "${key}" — allowed fields: name, phone, email, address.`);
+    if (!ALLOWED_KEYS.has(key as (typeof STRING_FIELDS)[number])) {
+      errors.push(
+        `Unknown field "${key}" — allowed fields: ${Array.from(ALLOWED_KEYS).join(", ")}.`
+      );
     }
   }
 
@@ -68,18 +74,13 @@ export function validateWebhookPayload(
     success: true,
     data: {
       name: (record.name as string).trim(),
-      phone:
-        typeof record.phone === "string" && record.phone.trim()
-          ? record.phone.trim()
-          : undefined,
-      email:
-        typeof record.email === "string" && record.email.trim()
-          ? record.email.trim()
-          : undefined,
-      address:
-        typeof record.address === "string" && record.address.trim()
-          ? record.address.trim()
-          : undefined,
+      phone: trimOptionalString(record.phone),
+      email: trimOptionalString(record.email),
+      address: trimOptionalString(record.address),
+      streetAddress: trimOptionalString(record.streetAddress),
+      city: trimOptionalString(record.city),
+      state: trimOptionalString(record.state),
+      zip: trimOptionalString(record.zip),
     },
   };
 }

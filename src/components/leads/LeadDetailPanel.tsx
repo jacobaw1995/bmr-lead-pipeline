@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchLeadHistory } from "@/lib/leads/actions";
+import { formatFullAddress } from "@/lib/leads/address";
 import { SOURCE_LABELS, STAGE_LABELS } from "@/lib/leads/constants";
 import { canEditLead } from "@/lib/leads/permissions";
 import { formatTimestamp } from "@/lib/leads/format";
@@ -10,6 +11,8 @@ import type { LeadHistory, LeadWithOwner } from "@/lib/leads/types";
 import type { UserRole } from "@/types/database";
 import { ClaimLeadButton } from "./ClaimLeadButton";
 import { CloseLeadSection } from "./CloseLeadSection";
+import { LeadMilestones } from "./LeadMilestones";
+import { LeadValueSection } from "./LeadValueSection";
 import { LeadActivityTrail } from "./LeadActivityTrail";
 import { LeadNotes } from "./LeadNotes";
 
@@ -76,9 +79,18 @@ export function LeadDetailPanel({
 
   if (!lead) return null;
 
+  const fullAddress = formatFullAddress(lead);
   const isActive = lead.status === "active";
   const isUnclaimed = isActive && !lead.owner_id;
-  const canClose = isActive && canEditLead(lead, currentUserId, currentUserRole);
+  const canEdit = canEditLead(lead, currentUserId, currentUserRole);
+  const canClose = isActive && canEdit;
+  const showValueSection =
+    isActive &&
+    canEdit &&
+    (lead.stage === "proposal_sent" ||
+      lead.stage === "negotiating" ||
+      lead.stage === "closed" ||
+      lead.value != null);
 
   function handleClosed() {
     onClose();
@@ -138,7 +150,7 @@ export function LeadDetailPanel({
           <div className="mt-3 space-y-1 text-sm text-field-cream/60">
             {lead.phone && <p>{lead.phone}</p>}
             {lead.email && <p className="truncate">{lead.email}</p>}
-            {lead.address && <p>{lead.address}</p>}
+            {fullAddress && <p>{fullAddress}</p>}
             <p className="text-xs text-field-cream/40 pt-1">
               Owner:{" "}
               {lead.owner_id
@@ -168,6 +180,18 @@ export function LeadDetailPanel({
 
           {isUnclaimed && (
             <ClaimLeadButton leadId={lead.id} onClaimed={handleClaimed} />
+          )}
+
+          {isActive && (
+            <LeadMilestones lead={lead} canEdit={canEdit} />
+          )}
+
+          {showValueSection && (
+            <LeadValueSection
+              leadId={lead.id}
+              currentValue={lead.value}
+              onUpdated={() => router.refresh()}
+            />
           )}
 
           {canClose && (

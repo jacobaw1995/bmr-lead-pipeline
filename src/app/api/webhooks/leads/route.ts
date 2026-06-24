@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
+import { formatFullAddress, normalizeAddress } from "@/lib/leads/address";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   validateWebhookPayload,
@@ -38,7 +39,22 @@ export async function POST(request: Request) {
     );
   }
 
-  const { name, phone, email, address } = validation.data;
+  const { name, phone, email, address, streetAddress, city, state, zip } =
+    validation.data;
+
+  const addr = normalizeAddress({
+    streetAddress: streetAddress ?? address,
+    city,
+    state,
+    zip,
+  });
+  const legacyAddress = formatFullAddress({
+    address: address && !streetAddress ? address : null,
+    street_address: addr.street_address,
+    city: addr.city,
+    state: addr.state,
+    zip: addr.zip,
+  });
 
   try {
     const supabase = createAdminClient();
@@ -49,7 +65,11 @@ export async function POST(request: Request) {
         name,
         phone: phone ?? null,
         email: email ?? null,
-        address: address ?? null,
+        address: legacyAddress,
+        street_address: addr.street_address,
+        city: addr.city,
+        state: addr.state,
+        zip: addr.zip,
         source: "webhook",
         stage: "lead_captured",
         status: "active",
