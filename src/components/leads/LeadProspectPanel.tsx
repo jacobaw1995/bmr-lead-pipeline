@@ -178,7 +178,7 @@ function ProspectFields({
             Source
           </p>
           <p className="text-field-cream/60">
-            {getSourceDisplayLabel(lead.source)}
+            {getSourceDisplayLabel(lead.source, lead.referral_name)}
           </p>
         </div>
       </div>
@@ -232,7 +232,7 @@ export function LeadProspectPanel({
 
   if (accordion) {
     return (
-      <div className="shrink-0 border-b border-field-line/20 bg-field-dark/95">
+      <div className="shrink-0">
         <button
           type="button"
           onClick={() => setProspectOpen((o) => !o)}

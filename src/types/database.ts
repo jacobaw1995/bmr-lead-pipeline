@@ -74,6 +74,7 @@ export interface Lead {
   proposal_sent_at: string | null;
   last_contacted_at: string | null;
   source: LeadSource;
+  referral_name: string | null;
   stage: LeadStage;
   status: LeadStatus;
   value: number | null;

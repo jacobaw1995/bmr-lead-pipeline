@@ -1,7 +1,13 @@
-import { formatSourceLabel } from "@/lib/leads/sources";
+import { formatLeadSourceDisplay, formatSourceLabel } from "@/lib/leads/sources";
 import type { LeadStage } from "@/types/database";
 
-export function getSourceDisplayLabel(source: string | null | undefined): string {
+export function getSourceDisplayLabel(
+  source: string | null | undefined,
+  referralName?: string | null
+): string {
+  if (referralName?.trim()) {
+    return formatLeadSourceDisplay({ source, referral_name: referralName });
+  }
   return formatSourceLabel(source);
 }
 

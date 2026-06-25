@@ -27,6 +27,7 @@ export function AddLeadModal({ open, onClose }: AddLeadModalProps) {
   const [profile, setProfile] = useState<LeadProfileInput>(emptyProfile);
   const [sourcePicked, setSourcePicked] = useState("Phone Call");
   const [customSource, setCustomSource] = useState("");
+  const [referralWho, setReferralWho] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   useEffect(() => {
@@ -34,6 +35,7 @@ export function AddLeadModal({ open, onClose }: AddLeadModalProps) {
       setProfile(emptyProfile);
       setSourcePicked("Phone Call");
       setCustomSource("");
+      setReferralWho("");
       setError(null);
     }
   }, [open]);
@@ -58,6 +60,7 @@ export function AddLeadModal({ open, onClose }: AddLeadModalProps) {
       ...profile,
       sourcePicked,
       customSource,
+      referralWho,
     });
 
     if (!result.success) {
@@ -101,6 +104,8 @@ export function AddLeadModal({ open, onClose }: AddLeadModalProps) {
             customSource={customSource}
             onSourcePickedChange={setSourcePicked}
             onCustomSourceChange={setCustomSource}
+            referralWho={referralWho}
+            onReferralWhoChange={setReferralWho}
           />
 
           <div className="flex gap-3 pt-2 sticky bottom-0 bg-field-dark pb-1">

@@ -13,8 +13,10 @@ interface LeadProfileFormProps {
   onChange: (next: LeadProfileInput) => void;
   sourcePicked: string;
   customSource: string;
+  referralWho: string;
   onSourcePickedChange: (value: string) => void;
   onCustomSourceChange: (value: string) => void;
+  onReferralWhoChange: (value: string) => void;
   showStage?: boolean;
   compact?: boolean;
 }
@@ -24,8 +26,10 @@ export function LeadProfileForm({
   onChange,
   sourcePicked,
   customSource,
+  referralWho,
   onSourcePickedChange,
   onCustomSourceChange,
+  onReferralWhoChange,
   showStage = false,
   compact = false,
 }: LeadProfileFormProps) {
@@ -214,8 +218,10 @@ export function LeadProfileForm({
         <LeadSourcePicker
           picked={sourcePicked}
           customSource={customSource}
+          referralWho={referralWho}
           onPickedChange={onSourcePickedChange}
           onCustomChange={onCustomSourceChange}
+          onReferralWhoChange={onReferralWhoChange}
           groupName={compact ? "lead-source-edit" : "lead-source-add"}
         />
         {showStage && (

@@ -365,7 +365,7 @@ export function getVitalFieldDefs(
           key: "source",
           label: "Source",
           type: "readonly",
-          value: getSourceDisplayLabel(lead.source),
+          value: getSourceDisplayLabel(lead.source, lead.referral_name),
         },
       ];
     case "site_visit":

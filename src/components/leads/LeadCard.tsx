@@ -91,7 +91,7 @@ export function LeadCard({
           {displayName}
         </h3>
         <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide bg-field-turf/40 text-field-cream/60">
-          {getSourceDisplayLabel(lead.source)}
+          {getSourceDisplayLabel(lead.source, lead.referral_name)}
         </span>
       </div>
 

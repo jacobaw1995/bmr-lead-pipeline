@@ -2,14 +2,17 @@
 
 import {
   CUSTOM_SOURCE_VALUE,
+  REFERRAL_SOURCE,
   STANDARD_LEAD_SOURCES,
 } from "@/lib/leads/sources";
 
 interface LeadSourcePickerProps {
   picked: string;
   customSource: string;
+  referralWho: string;
   onPickedChange: (value: string) => void;
   onCustomChange: (value: string) => void;
+  onReferralWhoChange: (value: string) => void;
   optional?: boolean;
   /** Unique radio group name when multiple pickers on one page */
   groupName?: string;
@@ -18,8 +21,10 @@ interface LeadSourcePickerProps {
 export function LeadSourcePicker({
   picked,
   customSource,
+  referralWho,
   onPickedChange,
   onCustomChange,
+  onReferralWhoChange,
   optional = false,
   groupName = "lead-source",
 }: LeadSourcePickerProps) {
@@ -70,6 +75,24 @@ export function LeadSourcePicker({
           <span>Other — custom source</span>
         </label>
       </div>
+      {picked === REFERRAL_SOURCE && (
+        <div className="mt-2">
+          <label
+            htmlFor={`${groupName}-referral-who`}
+            className="block text-[10px] font-medium text-field-cream/55 mb-1"
+          >
+            Who referred them?
+          </label>
+          <input
+            id={`${groupName}-referral-who`}
+            type="text"
+            value={referralWho}
+            onChange={(e) => onReferralWhoChange(e.target.value)}
+            placeholder="e.g. John Smith, past customer"
+            className="w-full rounded-lg border border-field-line/30 bg-field-turf/10 px-3 py-2 text-sm text-field-cream placeholder:text-field-cream/30 focus:outline-none focus:ring-2 focus:ring-field-gold/40 min-h-[48px]"
+          />
+        </div>
+      )}
       {picked === CUSTOM_SOURCE_VALUE && (
         <input
           type="text"

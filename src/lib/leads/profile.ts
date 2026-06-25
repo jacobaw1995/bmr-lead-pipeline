@@ -21,6 +21,7 @@ export interface LeadProfileInput {
   source?: string;
   sourcePicked?: string;
   customSource?: string;
+  referralWho?: string;
   existingRoofType?: string;
   roofTypeRequested?: string;
   remodelOrNewConstruction?: string;
@@ -49,6 +50,7 @@ export type LeadProfileFields = Pick<
   | "remodel_or_new_construction"
   | "homeowner_or_contractor"
   | "source"
+  | "referral_name"
   | "stage"
 >;
 
@@ -224,6 +226,7 @@ export function leadToProfileInput(
     roofTypeRequested: lead.roof_type_requested ?? "",
     remodelOrNewConstruction: lead.remodel_or_new_construction ?? "",
     homeownerOrContractor: lead.homeowner_or_contractor ?? "",
+    referralWho: lead.referral_name ?? "",
   };
 }
 
@@ -265,6 +268,8 @@ export function buildLeadProfileRecord(
     zip: service.zip,
     address: serviceFormatted,
     source,
+    referral_name:
+      source === "Referral" ? trimOrNull(input.referralWho) : null,
     existing_roof_type: trimOrNull(input.existingRoofType),
     roof_type_requested: trimOrNull(input.roofTypeRequested),
     remodel_or_new_construction: trimOrNull(input.remodelOrNewConstruction),

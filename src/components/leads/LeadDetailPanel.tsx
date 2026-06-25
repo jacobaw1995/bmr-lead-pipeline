@@ -110,30 +110,31 @@ export function LeadDetailPanel({
       <div className="relative flex flex-col sm:flex-row w-full max-w-6xl h-full sm:h-[min(100%,900px)] sm:my-auto mx-auto bg-field-dark sm:rounded-2xl sm:border border-field-line/20 shadow-2xl overflow-hidden safe-area-bottom">
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 z-10 shrink-0 w-10 h-10 rounded-lg border border-field-line/20 text-field-cream/50 hover:text-field-cream hover:bg-field-turf/20 transition flex items-center justify-center sm:hidden"
-          aria-label="Close"
-        >
-          ✕
-        </button>
-
-        <button
-          onClick={onClose}
           className="absolute top-4 right-4 z-10 hidden sm:flex shrink-0 w-9 h-9 rounded-lg border border-field-line/20 text-field-cream/50 hover:text-field-cream hover:bg-field-turf/20 transition items-center justify-center"
           aria-label={`Close ${displayName}`}
         >
           ✕
         </button>
 
-        <div className="sm:hidden">
-          <LeadProspectPanel
-            lead={lead}
-            history={history}
-            loading={loading}
-            canEdit={canEdit}
-            isManager={isManager}
-            onUpdated={handleRefresh}
-            accordion
-          />
+        <div className="sm:hidden shrink-0 flex items-start border-b border-field-line/20 bg-field-dark/95">
+          <div className="flex-1 min-w-0">
+            <LeadProspectPanel
+              lead={lead}
+              history={history}
+              loading={loading}
+              canEdit={canEdit}
+              isManager={isManager}
+              onUpdated={handleRefresh}
+              accordion
+            />
+          </div>
+          <button
+            onClick={onClose}
+            className="shrink-0 w-12 min-h-[48px] flex items-center justify-center border-l border-field-line/15 text-field-cream/50 hover:text-field-cream hover:bg-field-turf/20 transition"
+            aria-label="Close"
+          >
+            ✕
+          </button>
         </div>
 
         <div className="flex-1 min-w-0 min-h-0 flex flex-col">

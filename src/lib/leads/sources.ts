@@ -32,9 +32,22 @@ export function resolveLeadSource(
   return picked.trim();
 }
 
+export const REFERRAL_SOURCE = "Referral";
+
 export function formatSourceLabel(source: string | null | undefined): string {
   if (!source?.trim()) return "Unknown";
   return source.trim();
+}
+
+export function formatLeadSourceDisplay(lead: {
+  source: string | null | undefined;
+  referral_name?: string | null;
+}): string {
+  const source = formatSourceLabel(lead.source);
+  if (source === REFERRAL_SOURCE && lead.referral_name?.trim()) {
+    return `${REFERRAL_SOURCE} — ${lead.referral_name.trim()}`;
+  }
+  return source;
 }
 
 export function sourceToPickerValues(source: string | null | undefined): {

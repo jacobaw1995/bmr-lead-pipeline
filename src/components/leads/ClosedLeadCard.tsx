@@ -47,7 +47,7 @@ export function ClosedLeadCard({
           {formatLeadDisplayName(lead)}
         </h3>
         <span className="shrink-0 text-[10px] uppercase tracking-wide text-field-cream/40">
-          {getSourceDisplayLabel(lead.source)}
+          {getSourceDisplayLabel(lead.source, lead.referral_name)}
         </span>
       </div>
 

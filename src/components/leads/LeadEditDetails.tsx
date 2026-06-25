@@ -23,6 +23,7 @@ export function LeadEditDetails({ lead, onUpdated }: LeadEditDetailsProps) {
   );
   const [sourcePicked, setSourcePicked] = useState(source.picked);
   const [customSource, setCustomSource] = useState(source.customSource);
+  const [referralWho, setReferralWho] = useState(lead.referral_name ?? "");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -31,6 +32,7 @@ export function LeadEditDetails({ lead, onUpdated }: LeadEditDetailsProps) {
     setProfile(leadToProfileInput(lead, nextSource));
     setSourcePicked(nextSource.picked);
     setCustomSource(nextSource.customSource);
+    setReferralWho(lead.referral_name ?? "");
     setError(null);
   }
 
@@ -43,6 +45,7 @@ export function LeadEditDetails({ lead, onUpdated }: LeadEditDetailsProps) {
       ...profile,
       sourcePicked,
       customSource,
+      referralWho,
     });
 
     if (!result.success) {
@@ -86,6 +89,8 @@ export function LeadEditDetails({ lead, onUpdated }: LeadEditDetailsProps) {
         customSource={customSource}
         onSourcePickedChange={setSourcePicked}
         onCustomSourceChange={setCustomSource}
+        referralWho={referralWho}
+        onReferralWhoChange={setReferralWho}
         showStage
         compact
       />
