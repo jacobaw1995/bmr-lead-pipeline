@@ -83,6 +83,7 @@ export interface Lead {
   created_at: string;
   updated_at: string;
   closed_at: string | null;
+  intake_checklist: Record<string, unknown> | null;
 }
 
 export interface LeadNote {

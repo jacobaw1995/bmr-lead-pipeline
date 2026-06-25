@@ -3,6 +3,7 @@
 import { PIPELINE_STAGES } from "@/lib/leads/constants";
 import type { LeadProfileInput } from "@/lib/leads/profile";
 import { LeadSourcePicker } from "./LeadSourcePicker";
+import { RoofTypeMultiSelect } from "./RoofTypeMultiSelect";
 
 const inputClass =
   "w-full rounded-lg border border-field-line/30 bg-field-turf/10 px-3 py-2 text-sm text-field-cream placeholder:text-field-cream/30 focus:outline-none focus:ring-2 focus:ring-field-gold/40";
@@ -161,48 +162,50 @@ export function LeadProfileForm({
             Project
           </h4>
         )}
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Existing roof">
-            <input
-              type="text"
-              value={value.existingRoofType ?? ""}
-              onChange={(e) => patch({ existingRoofType: e.target.value })}
-              className={inputClass}
-              placeholder="Shingle, metal…"
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <Field label="Existing roof type(s)">
+            <RoofTypeMultiSelect
+              value={value.existingRoofType}
+              onChange={(serialized) =>
+                patch({ existingRoofType: serialized ?? "" })
+              }
             />
           </Field>
-          <Field label="Requested roof">
-            <input
-              type="text"
-              value={value.roofTypeRequested ?? ""}
-              onChange={(e) => patch({ roofTypeRequested: e.target.value })}
-              className={inputClass}
-              placeholder="Standing seam…"
+          <Field label="Requested roof type(s)">
+            <RoofTypeMultiSelect
+              value={value.roofTypeRequested}
+              onChange={(serialized) =>
+                patch({ roofTypeRequested: serialized ?? "" })
+              }
             />
           </Field>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <Field label="Remodel / new">
-            <input
-              type="text"
+            <select
               value={value.remodelOrNewConstruction ?? ""}
               onChange={(e) =>
                 patch({ remodelOrNewConstruction: e.target.value })
               }
               className={inputClass}
-              placeholder="Remodel or New Construction"
-            />
+            >
+              <option value="">Select…</option>
+              <option value="Remodel">Remodel</option>
+              <option value="New Construction">New Construction</option>
+            </select>
           </Field>
           <Field label="Customer type">
-            <input
-              type="text"
+            <select
               value={value.homeownerOrContractor ?? ""}
               onChange={(e) =>
                 patch({ homeownerOrContractor: e.target.value })
               }
               className={inputClass}
-              placeholder="Homeowner or Contractor"
-            />
+            >
+              <option value="">Select…</option>
+              <option value="Homeowner">Homeowner</option>
+              <option value="Contractor">Contractor</option>
+            </select>
           </Field>
         </div>
       </section>

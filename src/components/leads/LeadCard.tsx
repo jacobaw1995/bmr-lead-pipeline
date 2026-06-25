@@ -45,10 +45,32 @@ export function LeadCard({
   const displayName = formatLeadDisplayName(lead);
   const primaryPhone = getPrimaryPhone(lead);
   const telHref = primaryPhone ? phoneTelHref(primaryPhone) : "";
+  const clickable = Boolean(onOpenDetail && !isOverlay);
+
+  function stopOpen(e: React.SyntheticEvent) {
+    e.stopPropagation();
+  }
 
   return (
     <div
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={clickable ? onOpenDetail : undefined}
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onOpenDetail?.();
+              }
+            }
+          : undefined
+      }
       className={`rounded-lg border bg-field-dark/50 p-3 transition ${
+        clickable
+          ? "cursor-pointer hover:border-field-gold/40 hover:bg-field-turf/15 active:scale-[0.99]"
+          : ""
+      } ${
         isOverlay
           ? "border-field-gold shadow-lg shadow-field-gold/20 rotate-1 scale-105"
           : isDragging
@@ -61,7 +83,11 @@ export function LeadCard({
       }`}
     >
       <div className="flex items-start justify-between gap-2">
-        <h3 className="font-semibold text-field-cream text-sm leading-tight">
+        <h3
+          className={`font-semibold text-field-cream text-sm leading-tight ${
+            clickable ? "hover:text-field-gold transition" : ""
+          }`}
+        >
           {displayName}
         </h3>
         <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide bg-field-turf/40 text-field-cream/60">
@@ -73,8 +99,8 @@ export function LeadCard({
         {primaryPhone && telHref && !isOverlay ? (
           <a
             href={telHref}
-            onClick={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
+            onClick={stopOpen}
+            onPointerDown={stopOpen}
             className="block text-field-cream/70 hover:text-field-gold transition"
           >
             {primaryPhone}
@@ -99,11 +125,13 @@ export function LeadCard({
           </span>
         )}
         {showValueInput ? (
-          <LeadCardInlineValue
-            leadId={lead.id}
-            currentValue={lead.value}
-            canEdit={canEdit}
-          />
+          <div onClick={stopOpen} onPointerDown={stopOpen}>
+            <LeadCardInlineValue
+              leadId={lead.id}
+              currentValue={lead.value}
+              canEdit={canEdit}
+            />
+          </div>
         ) : lead.value != null ? (
           <p className="text-field-gold/80 font-medium">
             ${lead.value.toLocaleString()}
@@ -135,25 +163,9 @@ export function LeadCard({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {onOpenDetail && !isOverlay && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                onOpenDetail();
-              }}
-              onPointerDown={(e) => e.stopPropagation()}
-              className="text-[10px] font-medium text-field-cream/40 hover:text-field-cream transition"
-            >
-              Details
-            </button>
-          )}
-          <span className="text-[10px] text-field-cream/30">
-            {formatRelativeTime(lead.created_at)}
-          </span>
-        </div>
+        <span className="text-[10px] text-field-cream/30 shrink-0">
+          {formatRelativeTime(lead.created_at)}
+        </span>
       </div>
     </div>
   );

@@ -20,7 +20,10 @@ import type { AppointmentType } from "@/types/database";
 import { canEditLead } from "@/lib/leads/permissions";
 import { normalizeImportedSource, resolveLeadSource } from "@/lib/leads/sources";
 import type { CsvLeadRow } from "@/lib/leads/csv";
-import type { LeadStage } from "@/types/database";
+import type { LeadFieldPatch } from "@/lib/leads/command-center";
+import type { IntakeChecklistData } from "@/lib/leads/intake-checklist";
+import { shouldAutoBuildScope } from "@/lib/leads/scope";
+import type { Lead, LeadStage } from "@/types/database";
 
 export type CreateLeadInput = LeadProfileInput & {
   /** Manager CSV import — lands unclaimed in Lead Box */
@@ -974,6 +977,177 @@ export async function scheduleAppointment(
   return { success: true };
 }
 
+export async function patchLeadFields(
+  leadId: string,
+  patch: LeadFieldPatch
+): Promise<{ success: true } | { success: false; error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "You must be signed in." };
+  }
+
+  const access = await assertLeadEditable(supabase, leadId, user.id);
+  if (!access.ok) return { success: false, error: access.error };
+
+  const { data: current } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("id", leadId)
+    .single();
+
+  if (!current) return { success: false, error: "Lead not found." };
+
+  const lead = current as Lead;
+  const input = {
+    firstName: patch.firstName ?? lead.first_name ?? "",
+    lastName: patch.lastName ?? lead.last_name ?? "",
+    companyName: lead.company_name ?? "",
+    cellPhone: patch.cellPhone ?? lead.cell_phone ?? lead.phone ?? "",
+    secondaryPhone: patch.secondaryPhone ?? lead.secondary_phone ?? "",
+    email: patch.email ?? lead.email ?? "",
+    billing: {
+      streetAddress: lead.billing_street_address ?? "",
+      city: lead.billing_city ?? "",
+      state: lead.billing_state ?? "",
+      zip: lead.billing_zip ?? "",
+    },
+    service: {
+      streetAddress:
+        patch.serviceStreet ??
+        lead.service_street_address ??
+        lead.street_address ??
+        "",
+      city: patch.serviceCity ?? lead.service_city ?? lead.city ?? "",
+      state: patch.serviceState ?? lead.service_state ?? lead.state ?? "",
+      zip: patch.serviceZip ?? lead.service_zip ?? lead.zip ?? "",
+    },
+    existingRoofType:
+      patch.existingRoofType !== undefined
+        ? patch.existingRoofType ?? ""
+        : lead.existing_roof_type ?? "",
+    roofTypeRequested:
+      patch.roofTypeRequested !== undefined
+        ? patch.roofTypeRequested ?? ""
+        : lead.roof_type_requested ?? "",
+    remodelOrNewConstruction:
+      patch.remodelOrNewConstruction ?? lead.remodel_or_new_construction ?? "",
+    homeownerOrContractor:
+      patch.homeownerOrContractor ?? lead.homeowner_or_contractor ?? "",
+  };
+
+  const profileRecord = buildLeadProfileRecord(input, lead.source);
+  const updatePayload: Record<string, string | null> = {
+    ...profileRecord,
+    last_contacted_at: new Date().toISOString(),
+  };
+
+  const { error: updateError } = await supabase
+    .from("leads")
+    .update(updatePayload)
+    .eq("id", leadId);
+
+  if (updateError) {
+    return { success: false, error: updateError.message };
+  }
+
+  await supabase.from("lead_activity").insert({
+    lead_id: leadId,
+    actor_id: user.id,
+    action: "edited",
+    from_value: "Vital data",
+    to_value: "updated",
+  });
+
+  revalidateLeadPaths();
+  return { success: true };
+}
+
+async function maybeAutoBuildScopeForLead(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  leadId: string,
+  actorId: string
+): Promise<boolean> {
+  const { data: leadRow } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("id", leadId)
+    .single();
+
+  if (!leadRow) return false;
+
+  const { data: appointments } = await supabase
+    .from("lead_appointments")
+    .select("*")
+    .eq("lead_id", leadId)
+    .in("status", ["scheduled", "completed"]);
+
+  const lead = leadRow as Lead;
+  if (!shouldAutoBuildScope(lead, appointments ?? [])) return false;
+
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("leads")
+    .update({ roof_scope_ordered_at: now, last_contacted_at: now })
+    .eq("id", leadId);
+
+  if (error) return false;
+
+  await supabase.from("lead_activity").insert({
+    lead_id: leadId,
+    actor_id: actorId,
+    action: "edited",
+    from_value: "Scope",
+    to_value: "auto-built from site visit data",
+  });
+
+  return true;
+}
+
+export async function updateIntakeChecklist(
+  leadId: string,
+  checklist: IntakeChecklistData
+): Promise<
+  | { success: true; scopeBuilt: boolean }
+  | { success: false; error: string }
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "You must be signed in." };
+  }
+
+  const access = await assertLeadEditable(supabase, leadId, user.id);
+  if (!access.ok) return { success: false, error: access.error };
+
+  const { error: updateError } = await supabase
+    .from("leads")
+    .update({
+      intake_checklist: checklist,
+      last_contacted_at: new Date().toISOString(),
+    })
+    .eq("id", leadId);
+
+  if (updateError) {
+    return { success: false, error: updateError.message };
+  }
+
+  const scopeBuilt = await maybeAutoBuildScopeForLead(
+    supabase,
+    leadId,
+    user.id
+  );
+
+  revalidateLeadPaths();
+  return { success: true, scopeBuilt };
+}
+
 export async function completeAppointment(
   appointmentId: string
 ): Promise<{ success: true } | { success: false; error: string }> {
@@ -1033,6 +1207,8 @@ export async function completeAppointment(
     from_value: label,
     to_value: `completed:${appointment.scheduled_at}`,
   });
+
+  await maybeAutoBuildScopeForLead(supabase, appointment.lead_id, user.id);
 
   revalidateLeadPaths();
   return { success: true };

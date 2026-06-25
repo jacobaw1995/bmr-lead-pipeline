@@ -21,7 +21,6 @@ import {
   getCommandStageLabel,
   getMarkCompleteLabel,
   getRecommendedAction,
-  getVitalFields,
   isCommandStageComplete,
   type CommandStageKey,
 } from "@/lib/leads/command-center";
@@ -29,6 +28,8 @@ import { formatLeadDisplayName, getPrimaryPhone } from "@/lib/leads/profile";
 import { phoneTelHref } from "@/lib/leads/phone";
 import type { LeadWithOwner, NoteWithAuthor } from "@/lib/leads/types";
 import { ClaimLeadButton } from "./ClaimLeadButton";
+import { LeadIntakeChecklist } from "./LeadIntakeChecklist";
+import { LeadVitalFields } from "./LeadVitalFields";
 import { ScheduleAppointmentModal } from "./ScheduleAppointmentModal";
 
 interface LeadCommandCenterProps {
@@ -51,7 +52,6 @@ export function LeadCommandCenter({
   const router = useRouter();
   const appointments = lead.appointments ?? [];
   const siteVisit = getSiteVisitAppointment(appointments);
-  const latestNote = notes.at(-1)?.content ?? null;
   const primaryPhone = getPrimaryPhone(lead);
 
   const [view, setView] = useState<CommandStageKey>(() =>
@@ -74,7 +74,6 @@ export function LeadCommandCenter({
   }, [lead.id]);
 
   const progress = getCommandProgress(lead, appointments);
-  const vitalFields = getVitalFields(view, lead, appointments, latestNote);
   const recommended = getRecommendedAction(view, lead, appointments);
   const markLabel = getMarkCompleteLabel(view);
   const showMarkComplete = canMarkStageComplete(
@@ -197,7 +196,8 @@ export function LeadCommandCenter({
   const showSchedule =
     canEdit &&
     lead.status === "active" &&
-    (view === "new_lead" || view === "site_visit");
+    (view === "new_lead" || view === "site_visit") &&
+    !siteVisit;
   const showEditQuote =
     canEdit &&
     lead.status === "active" &&
@@ -282,42 +282,38 @@ export function LeadCommandCenter({
             />
           )}
 
+          {view === "new_lead" && (
+            <LeadIntakeChecklist
+              lead={lead}
+              canEdit={canEdit}
+              variant="intake"
+              onUpdated={onRefresh}
+              onToast={onToast}
+            />
+          )}
+
+          {(view === "site_visit" || view === "scope") && (
+            <LeadIntakeChecklist
+              lead={lead}
+              canEdit={canEdit}
+              variant="site_visit"
+              onUpdated={onRefresh}
+              onToast={onToast}
+            />
+          )}
+
           <section>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-field-gold mb-3">
               Vital data
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {vitalFields.map((field) => (
-                <div
-                  key={field.label}
-                  className="rounded-xl border border-field-line/20 bg-field-turf/10 px-4 py-3 min-h-[72px]"
-                >
-                  <p className="text-[10px] uppercase tracking-wide text-field-cream/40 mb-1">
-                    {field.label}
-                  </p>
-                  {field.value ? (
-                    field.href ? (
-                      <a
-                        href={field.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm font-medium text-field-cream leading-snug hover:text-field-gold transition"
-                      >
-                        {field.value}
-                      </a>
-                    ) : (
-                      <p className="text-sm font-medium text-field-cream leading-snug">
-                        {field.value}
-                      </p>
-                    )
-                  ) : (
-                    <p className="text-sm text-field-cream/35 italic">
-                      {field.emptyHint ?? "—"}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
+            <LeadVitalFields
+              view={view}
+              lead={lead}
+              notes={notes}
+              canEdit={canEdit}
+              onUpdated={onRefresh}
+              onToast={onToast}
+            />
           </section>
 
           <section>

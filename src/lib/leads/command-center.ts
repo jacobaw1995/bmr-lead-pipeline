@@ -3,10 +3,35 @@ import {
   formatAppointmentDateTime,
   getSiteVisitAppointment,
 } from "@/lib/leads/appointments";
+import {
+  getIntakeProgress,
+  getMainIssue,
+  isIntakeChecklistComplete,
+  parseIntakeChecklist,
+  formatExistingRoofDisplay,
+  formatRequestedRoofDisplay,
+} from "@/lib/leads/intake-checklist";
 import { STAGE_LABELS, getSourceDisplayLabel } from "@/lib/leads/constants";
 import { formatCurrency } from "@/lib/leads/format";
 import { formatLeadDisplayName } from "@/lib/leads/profile";
+import { getScopeStatusLabel } from "@/lib/leads/scope";
 import type { Lead, LeadAppointment } from "@/types/database";
+import type { NoteWithAuthor } from "@/lib/leads/types";
+export type LeadFieldPatch = Partial<{
+  firstName: string;
+  lastName: string;
+  cellPhone: string;
+  secondaryPhone: string;
+  email: string;
+  homeownerOrContractor: string;
+  remodelOrNewConstruction: string;
+  existingRoofType: string | null;
+  roofTypeRequested: string | null;
+  serviceStreet: string;
+  serviceCity: string;
+  serviceState: string;
+  serviceZip: string;
+}>;
 
 export type CommandStageKey =
   | "new_lead"
@@ -25,11 +50,28 @@ export const COMMAND_STAGES: { key: CommandStageKey; label: string }[] = [
   { key: "closed", label: "Closed" },
 ];
 
-export interface VitalField {
+export type VitalFieldType =
+  | "text"
+  | "phone"
+  | "email"
+  | "textarea"
+  | "select"
+  | "roof_types"
+  | "address"
+  | "readonly";
+
+export type VitalPatchKey = keyof LeadFieldPatch | "mainIssue";
+
+export interface VitalFieldDef {
+  key: string;
   label: string;
+  type: VitalFieldType;
   value: string | null;
+  rawValue?: string | null;
   href?: string;
   emptyHint?: string;
+  patchKey?: VitalPatchKey;
+  options?: string[];
 }
 
 export function isCommandStageComplete(
@@ -37,9 +79,14 @@ export function isCommandStageComplete(
   lead: Lead,
   appointments?: LeadAppointment[]
 ): boolean {
+  const checklist = parseIntakeChecklist(lead.intake_checklist);
+
   switch (key) {
     case "new_lead":
-      return lead.stage !== "lead_captured";
+      return (
+        lead.stage !== "lead_captured" ||
+        isIntakeChecklistComplete(lead, checklist, appointments)
+      );
     case "site_visit":
       return (
         lead.site_survey_complete_at != null ||
@@ -107,25 +154,34 @@ export function getRecommendedAction(
   appointments?: LeadAppointment[]
 ): string {
   const siteVisit = getSiteVisitAppointment(appointments);
+  const checklist = parseIntakeChecklist(lead.intake_checklist);
+  const intake = getIntakeProgress(lead, checklist, appointments);
 
   switch (view) {
     case "new_lead":
-      if (!lead.owner_id) return "Claim this lead and qualify the opportunity.";
-      if (lead.stage === "lead_captured") {
-        return "Confirm contact info and move to Qualified when ready.";
+      if (!lead.owner_id) {
+        return "Claim this lead, then call the prospect to start the intake checklist.";
       }
-      return "Schedule the site visit once you've made first contact.";
+      if (intake.percent < 100) {
+        return `Initiate contact and work through the intake checklist (${intake.done}/${intake.total}). Schedule the site visit on that call.`;
+      }
+      if (!siteVisit) {
+        return "Intake complete — schedule the site visit if you haven't already.";
+      }
+      return "Intake and visit are set. Mark qualified when ready to move forward.";
     case "site_visit":
-      if (!siteVisit) return "Schedule the site visit on the calendar.";
-      if (siteVisit.state === "scheduled") {
-        return `Visit set for ${formatAppointmentDateTime(siteVisit.appointment.scheduled_at)} — confirm the day before.`;
+      if (!siteVisit) {
+        return "Schedule the site visit once intake data is gathered.";
       }
-      return "Order roof scope measurements after the visit.";
+      if (siteVisit.state === "scheduled") {
+        return `Visit set for ${formatAppointmentDateTime(siteVisit.appointment.scheduled_at)} — confirm the day before and capture scope data on site.`;
+      }
+      return "Fill in the site visit scope checklist — the system builds scope automatically when complete.";
     case "scope":
       if (!lead.roof_scope_ordered_at) {
-        return "Order scope and mark complete when measurements are in.";
+        return "Complete the site visit scope checklist. Scope builds automatically when all data points are in.";
       }
-      return "Build the quote from scope data and present to the customer.";
+      return "Scope is built — review and move to quote / proposal.";
     case "quote":
       if (!lead.value) return "Set the quote amount and walk them through it.";
       if (!lead.quote_presented_at) {
@@ -154,7 +210,7 @@ export function getMarkCompleteLabel(view: CommandStageKey): string {
     case "site_visit":
       return "Mark Visit Complete";
     case "scope":
-      return "Mark Scope Ordered";
+      return "Scope Auto-Builds";
     case "quote":
       return "Mark Quote Presented";
     case "negotiating":
@@ -175,13 +231,18 @@ export function canMarkStageComplete(
   if (!canEdit || lead.status !== "active") return false;
   if (isCommandStageComplete(view, lead, appointments)) return false;
 
+  const checklist = parseIntakeChecklist(lead.intake_checklist);
+
   switch (view) {
     case "new_lead":
-      return lead.stage === "lead_captured";
+      return (
+        lead.stage === "lead_captured" &&
+        isIntakeChecklistComplete(lead, checklist, appointments)
+      );
     case "site_visit":
       return getSiteVisitAppointment(appointments)?.state === "scheduled";
     case "scope":
-      return !lead.roof_scope_ordered_at;
+      return false;
     case "quote":
       return !lead.quote_presented_at && lead.stage !== "proposal_sent";
     case "negotiating":
@@ -200,48 +261,128 @@ function decisionMaker(lead: Lead): string | null {
   return formatLeadDisplayName(lead);
 }
 
-export function getVitalFields(
+export function getVitalFieldDefs(
   view: CommandStageKey,
   lead: Lead,
   appointments?: LeadAppointment[],
-  latestNote?: string | null
-): VitalField[] {
+  checklist = parseIntakeChecklist(lead.intake_checklist),
+  notes: NoteWithAuthor[] = []
+): VitalFieldDef[] {
   const service = formatServiceAddress(lead);
   const siteVisit = getSiteVisitAppointment(appointments);
+  const mainIssue = getMainIssue(checklist, notes);
 
   switch (view) {
     case "new_lead":
       return [
         {
-          label: "Contact",
-          value: decisionMaker(lead),
-          emptyHint: "Add name in prospect panel",
+          key: "first_name",
+          label: "First name",
+          type: "text",
+          value: lead.first_name,
+          emptyHint: "Gather on intake call",
+          patchKey: "firstName",
         },
         {
+          key: "last_name",
+          label: "Last name",
+          type: "text",
+          value: lead.last_name,
+          emptyHint: "Gather on intake call",
+          patchKey: "lastName",
+        },
+        {
+          key: "cell_phone",
           label: "Cell phone",
+          type: "phone",
           value: lead.cell_phone ?? lead.phone,
           emptyHint: "Add phone",
+          patchKey: "cellPhone",
         },
         {
+          key: "email",
+          label: "Email",
+          type: "email",
+          value: lead.email,
+          emptyHint: "Add email",
+          patchKey: "email",
+        },
+        {
+          key: "customer_type",
           label: "Customer type",
+          type: "select",
           value: lead.homeowner_or_contractor,
-          emptyHint: "Homeowner or Contractor",
+          options: ["Homeowner", "Contractor"],
+          emptyHint: "Select type",
+          patchKey: "homeownerOrContractor",
         },
         {
+          key: "main_issue",
+          label: "Main issue / problem",
+          type: "textarea",
+          value: mainIssue,
+          emptyHint: "What's driving this project?",
+          patchKey: "mainIssue",
+        },
+        {
+          key: "existing_roof",
+          label: "Existing roof type(s)",
+          type: "roof_types",
+          value: formatExistingRoofDisplay(lead),
+          rawValue: lead.existing_roof_type,
+          emptyHint: "Select all sections",
+          patchKey: "existingRoofType",
+        },
+        {
+          key: "requested_roof",
+          label: "Requested roof type(s)",
+          type: "roof_types",
+          value: formatRequestedRoofDisplay(lead),
+          rawValue: lead.roof_type_requested,
+          emptyHint: "What they want installed",
+          patchKey: "roofTypeRequested",
+        },
+        {
+          key: "project_type",
+          label: "Remodel / new",
+          type: "select",
+          value: lead.remodel_or_new_construction,
+          options: ["Remodel", "New Construction"],
+          emptyHint: "Project type",
+          patchKey: "remodelOrNewConstruction",
+        },
+        {
+          key: "service_address",
+          label: "Service address",
+          type: "address",
+          value: service,
+          rawValue: lead.service_street_address ?? lead.street_address,
+          href: service ? mapsDirectionsUrl(service) : undefined,
+          emptyHint: "Job site street",
+          patchKey: "serviceStreet",
+        },
+        {
+          key: "source",
           label: "Source",
+          type: "readonly",
           value: getSourceDisplayLabel(lead.source),
         },
       ];
     case "site_visit":
       return [
         {
+          key: "service_address",
           label: "Service address",
+          type: "address",
           value: service,
           href: service ? mapsDirectionsUrl(service) : undefined,
           emptyHint: "Add job site address",
+          patchKey: "serviceStreet",
         },
         {
+          key: "visit_status",
           label: "Visit status",
+          type: "readonly",
           value: siteVisit
             ? siteVisit.state === "scheduled"
               ? formatAppointmentDateTime(siteVisit.appointment.scheduled_at)
@@ -250,80 +391,141 @@ export function getVitalFields(
           emptyHint: "Not scheduled yet",
         },
         {
+          key: "cell_phone",
           label: "Cell phone",
+          type: "phone",
           value: lead.cell_phone ?? lead.phone,
+          patchKey: "cellPhone",
+        },
+        {
+          key: "existing_roof",
+          label: "Existing roof type(s)",
+          type: "roof_types",
+          value: formatExistingRoofDisplay(lead),
+          rawValue: lead.existing_roof_type,
+          patchKey: "existingRoofType",
+        },
+        {
+          key: "requested_roof",
+          label: "Requested roof type(s)",
+          type: "roof_types",
+          value: formatRequestedRoofDisplay(lead),
+          rawValue: lead.roof_type_requested,
+          patchKey: "roofTypeRequested",
         },
       ];
     case "scope":
       return [
         {
+          key: "service_address",
           label: "Service address",
+          type: "readonly",
           value: service,
           href: service ? mapsDirectionsUrl(service) : undefined,
         },
         {
-          label: "Existing roof type",
-          value: lead.existing_roof_type,
-          emptyHint: "Add existing roof type",
+          key: "existing_roof",
+          label: "Existing roof type(s)",
+          type: "roof_types",
+          value: formatExistingRoofDisplay(lead),
+          rawValue: lead.existing_roof_type,
+          patchKey: "existingRoofType",
         },
         {
+          key: "requested_roof",
+          label: "Requested roof type(s)",
+          type: "roof_types",
+          value: formatRequestedRoofDisplay(lead),
+          rawValue: lead.roof_type_requested,
+          patchKey: "roofTypeRequested",
+        },
+        {
+          key: "scope_status",
           label: "Scope status",
-          value: lead.roof_scope_ordered_at ? "Scope ordered" : null,
-          emptyHint: "Not ordered yet",
+          type: "readonly",
+          value: getScopeStatusLabel(lead, appointments),
+          emptyHint: "Gather site visit data to build scope",
         },
       ];
     case "quote":
       return [
         {
+          key: "service_address",
           label: "Service address",
+          type: "readonly",
           value: service,
           href: service ? mapsDirectionsUrl(service) : undefined,
         },
         {
-          label: "Current roof type",
-          value: lead.existing_roof_type,
-          emptyHint: "Add existing roof type",
+          key: "existing_roof",
+          label: "Current roof type(s)",
+          type: "roof_types",
+          value: formatExistingRoofDisplay(lead),
+          rawValue: lead.existing_roof_type,
+          patchKey: "existingRoofType",
         },
         {
-          label: "Desired roof type",
-          value: lead.roof_type_requested,
-          emptyHint: "Add requested roof type",
+          key: "requested_roof",
+          label: "Desired roof type(s)",
+          type: "roof_types",
+          value: formatRequestedRoofDisplay(lead),
+          rawValue: lead.roof_type_requested,
+          patchKey: "roofTypeRequested",
         },
         {
+          key: "main_issue",
           label: "Main issue / problem",
-          value: latestNote ?? null,
-          emptyHint: "Log activity to capture the main issue",
+          type: "textarea",
+          value: mainIssue,
+          emptyHint: "Capture the main issue",
+          patchKey: "mainIssue",
         },
         {
+          key: "decision_maker",
           label: "Key decision maker",
+          type: "readonly",
           value: decisionMaker(lead),
+          emptyHint: "Update name in vital fields above",
         },
       ];
     case "negotiating":
       return [
         {
+          key: "quote_amount",
           label: "Quote amount",
+          type: "readonly",
           value: lead.value != null ? formatCurrency(lead.value) : null,
           emptyHint: "Set quote value",
         },
         {
-          label: "Desired roof type",
-          value: lead.roof_type_requested,
+          key: "requested_roof",
+          label: "Desired roof type(s)",
+          type: "roof_types",
+          value: formatRequestedRoofDisplay(lead),
+          rawValue: lead.roof_type_requested,
+          patchKey: "roofTypeRequested",
         },
         {
+          key: "pipeline_stage",
           label: "Pipeline stage",
+          type: "readonly",
           value: STAGE_LABELS[lead.stage],
         },
         {
+          key: "last_note",
           label: "Last note",
-          value: latestNote ?? null,
+          type: "textarea",
+          value: mainIssue,
           emptyHint: "Log objections or follow-ups",
+          patchKey: "mainIssue",
         },
       ];
     case "closed":
       return [
         {
+          key: "outcome",
           label: "Outcome",
+          type: "readonly",
           value:
             lead.status === "closed_won"
               ? "Closed Won"
@@ -332,15 +534,40 @@ export function getVitalFields(
                 : "Still active",
         },
         {
+          key: "deal_value",
           label: "Deal value",
+          type: "readonly",
           value: lead.value != null ? formatCurrency(lead.value) : null,
         },
         {
+          key: "lost_reason",
           label: "Lost reason",
+          type: "readonly",
           value: lead.lost_reason,
         },
       ];
     default:
       return [];
   }
+}
+
+/** @deprecated Use getVitalFieldDefs — kept for compatibility */
+export function getVitalFields(
+  view: CommandStageKey,
+  lead: Lead,
+  appointments?: LeadAppointment[],
+  latestNote?: string | null
+): { label: string; value: string | null; href?: string; emptyHint?: string }[] {
+  const checklist = parseIntakeChecklist(lead.intake_checklist);
+  const notes = latestNote
+    ? [{ content: latestNote } as NoteWithAuthor]
+    : [];
+  return getVitalFieldDefs(view, lead, appointments, checklist, notes).map(
+    (f) => ({
+      label: f.label,
+      value: f.value,
+      href: f.href,
+      emptyHint: f.emptyHint,
+    })
+  );
 }
