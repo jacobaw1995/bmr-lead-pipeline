@@ -1,4 +1,5 @@
 import { formatFullAddress } from "@/lib/leads/address";
+import { formatLeadDisplayName, getPrimaryPhone } from "@/lib/leads/profile";
 import {
   APPOINTMENT_TYPE_LABELS,
   getSiteVisitAppointment,
@@ -107,11 +108,11 @@ export function buildLeadCoachItems(
       priority: "high",
       priorityScore: 20,
       leadId: lead.id,
-      leadName: lead.name,
+      leadName: formatLeadDisplayName(lead),
       message:
         days >= 2
-          ? `Site visit was ${days} days ago — send ${lead.name} a proposal`
-          : `Site visit done — send a proposal to ${lead.name}`,
+          ? `Site visit was ${days} days ago — send ${formatLeadDisplayName(lead)} a proposal`
+          : `Site visit done — send a proposal to ${formatLeadDisplayName(lead)}`,
       actionLabel: "Send proposal",
       href: fieldLeadHref(lead.id),
     });
@@ -131,8 +132,8 @@ export function buildLeadCoachItems(
           priority: "medium",
           priorityScore: 45,
           leadId: lead.id,
-          leadName: lead.name,
-          message: `Proposal sent yesterday — light follow-up with ${lead.name}`,
+          leadName: formatLeadDisplayName(lead),
+          message: `Proposal sent yesterday — light follow-up with ${formatLeadDisplayName(lead)}`,
           actionLabel: "Follow up",
           href: fieldLeadHref(lead.id),
         });
@@ -143,8 +144,8 @@ export function buildLeadCoachItems(
           priority: "high",
           priorityScore: days >= 4 ? 15 : 30,
           leadId: lead.id,
-          leadName: lead.name,
-          message: `No follow-up in ${days} days — call ${lead.name}`,
+          leadName: formatLeadDisplayName(lead),
+          message: `No follow-up in ${days} days — call ${formatLeadDisplayName(lead)}`,
           actionLabel: "Follow up now",
           href: fieldLeadHref(lead.id),
         });
@@ -166,8 +167,8 @@ export function buildLeadCoachItems(
         priority: "medium",
         priorityScore: 55,
         leadId: lead.id,
-        leadName: lead.name,
-        message: `Still qualified — book a site visit for ${lead.name}`,
+        leadName: formatLeadDisplayName(lead),
+        message: `Still qualified — book a site visit for ${formatLeadDisplayName(lead)}`,
         actionLabel: "Schedule visit",
         href: fieldLeadHref(lead.id),
       });
@@ -188,8 +189,8 @@ export function buildLeadCoachItems(
       priority: "medium",
       priorityScore: 50,
       leadId: lead.id,
-      leadName: lead.name,
-      message: `${lead.name} needs a first touch — no contact in 24h+`,
+      leadName: formatLeadDisplayName(lead),
+      message: `${formatLeadDisplayName(lead)} needs a first touch — no contact in 24h+`,
       actionLabel: "Make contact",
       href: fieldLeadHref(lead.id),
     });
@@ -213,8 +214,8 @@ export function buildLeadCoachItems(
       priority: "low",
       priorityScore: 80,
       leadId: lead.id,
-      leadName: lead.name,
-      message: `${lead.name} has gone quiet — time to check in`,
+      leadName: formatLeadDisplayName(lead),
+      message: `${formatLeadDisplayName(lead)} has gone quiet — time to check in`,
       actionLabel: "Check in",
       href: fieldLeadHref(lead.id),
     });
@@ -273,7 +274,21 @@ export function parseTodayAppointments(
     const leadRaw = row.leads;
     const lead = (Array.isArray(leadRaw) ? leadRaw[0] : leadRaw) as Pick<
       Lead,
-      "name" | "phone" | "street_address" | "city" | "state" | "zip" | "address"
+      | "name"
+      | "first_name"
+      | "last_name"
+      | "company_name"
+      | "phone"
+      | "cell_phone"
+      | "street_address"
+      | "city"
+      | "state"
+      | "zip"
+      | "address"
+      | "service_street_address"
+      | "service_city"
+      | "service_state"
+      | "service_zip"
     >;
     const scheduledAt = row.scheduled_at as string;
     const scheduledDate = new Date(scheduledAt);
@@ -286,9 +301,9 @@ export function parseTodayAppointments(
     return {
       id: row.id as string,
       leadId: row.lead_id as string,
-      leadName: lead.name,
+      leadName: formatLeadDisplayName(lead),
       location: formatFullAddress(lead),
-      phone: lead.phone,
+      phone: getPrimaryPhone(lead),
       appointmentType: row.appointment_type as AppointmentType,
       scheduledAt,
       isSoon,

@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
-import { formatFullAddress, normalizeAddress } from "@/lib/leads/address";
+import { normalizeAddress } from "@/lib/leads/address";
+import { formatAddressFromParts } from "@/lib/leads/profile";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   validateWebhookPayload,
@@ -48,13 +49,20 @@ export async function POST(request: Request) {
     state,
     zip,
   });
-  const legacyAddress = formatFullAddress({
-    address: address && !streetAddress ? address : null,
+  const legacyAddress = formatAddressFromParts({
     street_address: addr.street_address,
     city: addr.city,
     state: addr.state,
     zip: addr.zip,
+    legacy_address: address && !streetAddress ? address : null,
   });
+
+  const trimmedName = name.trim();
+  const spaceIdx = trimmedName.indexOf(" ");
+  const firstName =
+    spaceIdx === -1 ? trimmedName : trimmedName.slice(0, spaceIdx);
+  const lastName =
+    spaceIdx === -1 ? null : trimmedName.slice(spaceIdx + 1).trim() || null;
 
   try {
     const supabase = createAdminClient();
@@ -62,14 +70,21 @@ export async function POST(request: Request) {
     const { data: lead, error: insertError } = await supabase
       .from("leads")
       .insert({
-        name,
+        name: trimmedName,
+        first_name: firstName,
+        last_name: lastName,
         phone: phone ?? null,
+        cell_phone: phone ?? null,
         email: email ?? null,
         address: legacyAddress,
         street_address: addr.street_address,
         city: addr.city,
         state: addr.state,
         zip: addr.zip,
+        service_street_address: addr.street_address,
+        service_city: addr.city,
+        service_state: addr.state,
+        service_zip: addr.zip,
         source: "Website",
         stage: "lead_captured",
         status: "active",

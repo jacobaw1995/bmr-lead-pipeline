@@ -3,7 +3,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchLeadHistory } from "@/lib/leads/actions";
-import { formatFullAddress, mapsDirectionsUrl } from "@/lib/leads/address";
+import {
+  formatBillingAddress,
+  formatServiceAddress,
+  mapsDirectionsUrl,
+} from "@/lib/leads/address";
+import {
+  formatLeadDisplayName,
+  getPrimaryPhone,
+} from "@/lib/leads/profile";
 import { phoneTelHref } from "@/lib/leads/phone";
 import { STAGE_LABELS, getSourceDisplayLabel } from "@/lib/leads/constants";
 import { formatCurrency, formatTimestamp } from "@/lib/leads/format";
@@ -82,7 +90,18 @@ export function LeadDetailPanel({
 
   if (!lead) return null;
 
-  const fullAddress = formatFullAddress(lead);
+  const displayName = formatLeadDisplayName(lead);
+  const primaryPhone = getPrimaryPhone(lead);
+  const serviceAddress = formatServiceAddress(lead);
+  const billingAddress = formatBillingAddress(lead);
+  const showBilling =
+    billingAddress && billingAddress !== serviceAddress;
+  const projectTags = [
+    lead.homeowner_or_contractor,
+    lead.remodel_or_new_construction,
+    lead.existing_roof_type && `Existing: ${lead.existing_roof_type}`,
+    lead.roof_type_requested && `Requested: ${lead.roof_type_requested}`,
+  ].filter(Boolean) as string[];
   const isActive = lead.status === "active";
   const isUnclaimed = isActive && !lead.owner_id;
   const canEdit = canEditLead(lead, currentUserId, currentUserRole);
@@ -120,7 +139,7 @@ export function LeadDetailPanel({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 className="text-lg font-bold text-field-cream truncate">
-                {lead.name}
+                {displayName}
               </h2>
               <div className="flex flex-wrap gap-2 mt-1.5">
                 {isActive ? (
@@ -158,32 +177,73 @@ export function LeadDetailPanel({
           </div>
 
           <div className="mt-3 space-y-1 text-sm text-field-cream/60">
-            {lead.phone && (
+            {primaryPhone && (
               <p>
-                {phoneTelHref(lead.phone) ? (
+                {phoneTelHref(primaryPhone) ? (
                   <a
-                    href={phoneTelHref(lead.phone)}
+                    href={phoneTelHref(primaryPhone)}
                     className="text-field-gold/90 hover:text-field-gold transition"
                   >
-                    {lead.phone}
+                    {primaryPhone}
                   </a>
                 ) : (
-                  lead.phone
+                  primaryPhone
                 )}
+                <span className="text-field-cream/35 text-xs ml-1">cell</span>
+              </p>
+            )}
+            {lead.secondary_phone && (
+              <p className="text-xs">
+                {phoneTelHref(lead.secondary_phone) ? (
+                  <a
+                    href={phoneTelHref(lead.secondary_phone)}
+                    className="text-field-cream/70 hover:text-field-gold transition"
+                  >
+                    {lead.secondary_phone}
+                  </a>
+                ) : (
+                  lead.secondary_phone
+                )}
+                <span className="text-field-cream/35 ml-1">secondary</span>
               </p>
             )}
             {lead.email && <p className="truncate">{lead.email}</p>}
-            {fullAddress && (
-              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-                <p>{fullAddress}</p>
-                <a
-                  href={mapsDirectionsUrl(fullAddress)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs font-medium text-field-gold hover:text-field-cream transition shrink-0"
-                >
-                  Directions →
-                </a>
+            {serviceAddress && (
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-field-cream/35 mb-0.5">
+                  Service (job site)
+                </p>
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                  <p>{serviceAddress}</p>
+                  <a
+                    href={mapsDirectionsUrl(serviceAddress)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-medium text-field-gold hover:text-field-cream transition shrink-0"
+                  >
+                    Directions →
+                  </a>
+                </div>
+              </div>
+            )}
+            {showBilling && (
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-field-cream/35 mb-0.5">
+                  Billing
+                </p>
+                <p>{billingAddress}</p>
+              </div>
+            )}
+            {projectTags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {projectTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="text-[10px] px-2 py-0.5 rounded bg-field-turf/25 text-field-cream/55"
+                  >
+                    {tag}
+                  </span>
+                ))}
               </div>
             )}
             {isManager && isActive ? (

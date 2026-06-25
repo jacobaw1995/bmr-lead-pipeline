@@ -1,5 +1,8 @@
-import type { Lead } from "@/types/database";
-
+import {
+  formatAddressFromParts,
+  getBillingAddressParts,
+  getServiceAddressParts,
+} from "@/lib/leads/profile";
 export interface AddressInput {
   streetAddress?: string;
   city?: string;
@@ -7,6 +10,7 @@ export interface AddressInput {
   zip?: string;
 }
 
+/** @deprecated Use profile helpers — kept for legacy callers */
 export function normalizeAddress(input: AddressInput) {
   return {
     street_address: input.streetAddress?.trim() || null,
@@ -16,39 +20,26 @@ export function normalizeAddress(input: AddressInput) {
   };
 }
 
-export function formatFullAddress(
-  lead: Pick<
-    Lead,
-    "address" | "street_address" | "city" | "state" | "zip"
-  >
-): string | null {
-  const parts: string[] = [];
+export function formatServiceAddress(lead: Parameters<typeof getServiceAddressParts>[0]) {
+  return formatAddressFromParts(getServiceAddressParts(lead));
+}
 
-  if (lead.street_address) parts.push(lead.street_address);
-  else if (lead.address) parts.push(lead.address);
+export function formatBillingAddress(lead: Parameters<typeof getBillingAddressParts>[0]) {
+  return formatAddressFromParts(getBillingAddressParts(lead));
+}
 
-  const cityStateZip = [
-    lead.city,
-    lead.state && lead.zip
-      ? `${lead.state} ${lead.zip}`
-      : lead.state || lead.zip,
-  ]
-    .filter(Boolean)
-    .join(", ");
-
-  if (cityStateZip) parts.push(cityStateZip);
-
-  return parts.length > 0 ? parts.join(", ") : null;
+/** Job-site address (service), with legacy field fallback */
+export function formatFullAddress(lead: Parameters<typeof getServiceAddressParts>[0]) {
+  return formatServiceAddress(lead);
 }
 
 export function mapsDirectionsUrl(address: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 }
 
-export function formatCityState(
-  lead: Pick<Lead, "city" | "state" | "zip">
-): string | null {
-  if (!lead.city && !lead.state && !lead.zip) return null;
-  const line = [lead.city, lead.state].filter(Boolean).join(", ");
-  return lead.zip ? `${line} ${lead.zip}`.trim() : line || null;
+export function formatCityState(lead: Parameters<typeof getServiceAddressParts>[0]) {
+  const service = getServiceAddressParts(lead);
+  if (!service.city && !service.state && !service.zip) return null;
+  const line = [service.city, service.state].filter(Boolean).join(", ");
+  return service.zip ? `${line} ${service.zip}`.trim() : line || null;
 }

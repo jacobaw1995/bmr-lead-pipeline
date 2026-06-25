@@ -1,43 +1,40 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createLead } from "@/lib/leads/actions";
-import { LeadSourcePicker } from "./LeadSourcePicker";
+import type { LeadProfileInput } from "@/lib/leads/profile";
+import { LeadProfileForm } from "./LeadProfileForm";
 
 interface AddLeadModalProps {
   open: boolean;
   onClose: () => void;
 }
 
+const emptyProfile: LeadProfileInput = {
+  firstName: "",
+  lastName: "",
+  companyName: "",
+  billing: {},
+  service: {},
+  cellPhone: "",
+  secondaryPhone: "",
+  email: "",
+};
+
 export function AddLeadModal({ open, onClose }: AddLeadModalProps) {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [streetAddress, setStreetAddress] = useState("");
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
-  const [zip, setZip] = useState("");
+  const [profile, setProfile] = useState<LeadProfileInput>(emptyProfile);
   const [sourcePicked, setSourcePicked] = useState("Phone Call");
   const [customSource, setCustomSource] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const nameRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     if (open) {
-      setName("");
-      setPhone("");
-      setEmail("");
-      setStreetAddress("");
-      setCity("");
-      setState("");
-      setZip("");
+      setProfile(emptyProfile);
       setSourcePicked("Phone Call");
       setCustomSource("");
       setError(null);
-      setTimeout(() => nameRef.current?.focus(), 50);
     }
   }, [open]);
 
@@ -58,13 +55,7 @@ export function AddLeadModal({ open, onClose }: AddLeadModalProps) {
     setLoading(true);
 
     const result = await createLead({
-      name,
-      phone,
-      email,
-      streetAddress,
-      city,
-      state,
-      zip,
+      ...profile,
       sourcePicked,
       customSource,
     });
@@ -88,103 +79,31 @@ export function AddLeadModal({ open, onClose }: AddLeadModalProps) {
         onClick={onClose}
       />
 
-      <div className="relative w-full max-w-md rounded-xl border border-field-line/30 bg-field-dark shadow-xl max-h-[90vh] overflow-y-auto">
-        <div className="px-5 py-4 border-b border-field-line/20">
+      <div className="relative w-full max-w-lg rounded-xl border border-field-line/30 bg-field-dark shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className="px-5 py-4 border-b border-field-line/20 sticky top-0 bg-field-dark z-10">
           <h2 className="text-lg font-semibold text-field-cream">Add a Lead</h2>
           <p className="text-xs text-field-cream/50 mt-0.5">
             Lands in the Lead Box at Lead Captured
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-5 py-4 space-y-3">
+        <form onSubmit={handleSubmit} className="px-5 py-4 space-y-4">
           {error && (
             <div className="rounded-lg bg-red-950/50 border border-red-800/50 px-3 py-2 text-sm text-red-300">
               {error}
             </div>
           )}
 
-          <Field label="Name" required>
-            <input
-              ref={nameRef}
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              className={inputClass}
-              placeholder="John Smith"
-            />
-          </Field>
-
-          <Field label="Phone">
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className={inputClass}
-              placeholder="(555) 123-4567"
-            />
-          </Field>
-
-          <Field label="Email">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={inputClass}
-              placeholder="john@example.com"
-            />
-          </Field>
-
-          <Field label="Street address">
-            <input
-              type="text"
-              value={streetAddress}
-              onChange={(e) => setStreetAddress(e.target.value)}
-              className={inputClass}
-              placeholder="123 Main St"
-            />
-          </Field>
-
-          <div className="grid grid-cols-6 gap-2">
-            <Field label="City" className="col-span-3">
-              <input
-                type="text"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                className={inputClass}
-                placeholder="Springfield"
-              />
-            </Field>
-            <Field label="State" className="col-span-1">
-              <input
-                type="text"
-                value={state}
-                onChange={(e) => setState(e.target.value.toUpperCase().slice(0, 2))}
-                className={inputClass}
-                placeholder="TN"
-                maxLength={2}
-              />
-            </Field>
-            <Field label="ZIP" className="col-span-2">
-              <input
-                type="text"
-                value={zip}
-                onChange={(e) => setZip(e.target.value)}
-                className={inputClass}
-                placeholder="37064"
-                maxLength={10}
-              />
-            </Field>
-          </div>
-
-          <LeadSourcePicker
-            picked={sourcePicked}
+          <LeadProfileForm
+            value={profile}
+            onChange={setProfile}
+            sourcePicked={sourcePicked}
             customSource={customSource}
-            onPickedChange={setSourcePicked}
-            onCustomChange={setCustomSource}
+            onSourcePickedChange={setSourcePicked}
+            onCustomSourceChange={setCustomSource}
           />
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-2 sticky bottom-0 bg-field-dark pb-1">
             <button
               type="button"
               onClick={onClose}
@@ -205,28 +124,3 @@ export function AddLeadModal({ open, onClose }: AddLeadModalProps) {
     </div>
   );
 }
-
-function Field({
-  label,
-  required,
-  className,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className={className}>
-      <label className="block text-xs font-medium text-field-cream/70 mb-1">
-        {label}
-        {required && <span className="text-field-gold ml-0.5">*</span>}
-      </label>
-      {children}
-    </div>
-  );
-}
-
-const inputClass =
-  "w-full rounded-lg border border-field-line/30 bg-field-turf/10 px-3 py-2 text-sm text-field-cream placeholder:text-field-cream/30 focus:outline-none focus:ring-2 focus:ring-field-gold/40";

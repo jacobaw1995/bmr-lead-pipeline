@@ -1,4 +1,5 @@
 import { formatCityState } from "@/lib/leads/address";
+import { formatLeadDisplayName, getPrimaryPhone } from "@/lib/leads/profile";
 import {
   formatAppointmentCardBadge,
   getDisplayAppointment,
@@ -41,7 +42,9 @@ export function LeadCard({
   const showValueInput =
     canEdit &&
     (VALUE_STAGES.includes(lead.stage) || lead.value != null);
-  const telHref = lead.phone ? phoneTelHref(lead.phone) : "";
+  const displayName = formatLeadDisplayName(lead);
+  const primaryPhone = getPrimaryPhone(lead);
+  const telHref = primaryPhone ? phoneTelHref(primaryPhone) : "";
 
   return (
     <div
@@ -59,7 +62,7 @@ export function LeadCard({
     >
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-semibold text-field-cream text-sm leading-tight">
-          {lead.name}
+          {displayName}
         </h3>
         <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide bg-field-turf/40 text-field-cream/60">
           {getSourceDisplayLabel(lead.source)}
@@ -67,17 +70,17 @@ export function LeadCard({
       </div>
 
       <div className="mt-2 space-y-1 text-xs text-field-cream/50">
-        {lead.phone && telHref && !isOverlay ? (
+        {primaryPhone && telHref && !isOverlay ? (
           <a
             href={telHref}
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
             className="block text-field-cream/70 hover:text-field-gold transition"
           >
-            {lead.phone}
+            {primaryPhone}
           </a>
-        ) : lead.phone ? (
-          <p>{lead.phone}</p>
+        ) : primaryPhone ? (
+          <p>{primaryPhone}</p>
         ) : null}
         {location && <p className="truncate">{location}</p>}
         {displayApt && (

@@ -66,8 +66,12 @@ export function formatActivityDescription(activity: ActivityWithActor): string {
     }
     case "edited": {
       const label = activity.from_value ?? "step";
-      if (activity.from_value === "Contact details" && activity.to_value === "updated") {
-        return `${actor} updated contact details`;
+      if (
+        (activity.from_value === "Contact details" ||
+          activity.from_value === "Lead profile") &&
+        activity.to_value === "updated"
+      ) {
+        return `${actor} updated lead details`;
       }
       if (activity.to_value === "completed") {
         return `${actor} completed ${label}`;

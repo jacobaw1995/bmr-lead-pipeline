@@ -119,32 +119,35 @@ export function ImportLeadsCsv() {
 
           <div>
             <p className="font-semibold text-field-cream text-sm mb-2">
-              Step 2 — Required column
+              Step 2 — Required on each row
             </p>
-            <ul className="list-disc pl-4 space-y-1">
-              <li>
-                <span className="font-mono text-field-gold/90">name</span> —
-                customer name (required on every row)
-              </li>
-            </ul>
+            <p className="mb-1">
+              At least one of:{" "}
+              <span className="font-mono text-field-gold/90">First Name</span>,{" "}
+              <span className="font-mono text-field-gold/90">Last Name</span>, or{" "}
+              <span className="font-mono text-field-gold/90">Company Name</span>
+              . Legacy <span className="font-mono">Name</span> column still works.
+            </p>
           </div>
 
           <div>
             <p className="font-semibold text-field-cream text-sm mb-2">
-              Step 3 — Optional columns
+              Step 3 — Standard columns
             </p>
-            <ul className="list-disc pl-4 space-y-1 font-mono text-[11px] text-field-cream/60">
-              <li>phone, email</li>
-              <li>street, city, state, zip</li>
-              <li>
-                source — Phone Call, Facebook, Referral, etc. (blank defaults
-                to Phone Call)
-              </li>
-              <li>
-                notes — anything that does not fit above (roof type, timeline,
-                who referred them, old CRM comments)
-              </li>
-            </ul>
+            <p className="text-[11px] font-mono text-field-cream/55 leading-relaxed">
+              First Name, Last Name, Company Name, Billing Address, Billing City,
+              Billing State, Billing Zip Code, Service Address, Service City,
+              Service State, Service Zip Code, Cell Phone, Secondary Number,
+              Email, Stage, Notes, Source, Existing Roof Type, Roof Type
+              Requested, Remodel or New Construction, Homeowner or Contractor
+            </p>
+            <p className="mt-2 text-field-cream/50">
+              <span className="font-mono">Stage</span> accepts Lead Captured,
+              Qualified, Proposal Sent, Negotiating, or Closed. Blank defaults
+              to Lead Captured.{" "}
+              <span className="font-mono">Source</span> blank defaults to Phone
+              Call.
+            </p>
           </div>
 
           <div>
@@ -152,10 +155,9 @@ export function ImportLeadsCsv() {
               Step 4 — Extra columns become notes
             </p>
             <p>
-              If your sheet has columns we do not recognize (e.g.{" "}
-              <span className="font-mono">roof_type</span>,{" "}
-              <span className="font-mono">estimator</span>), those values are
-              automatically appended to the lead&apos;s notes so nothing is lost.
+              Unrecognized columns are appended to notes so nothing is lost.
+              Use separate billing and service addresses when they differ
+              (contractors with multiple job sites).
             </p>
           </div>
 
@@ -164,7 +166,7 @@ export function ImportLeadsCsv() {
               Example header row
             </p>
             <pre className="rounded bg-field-dark/50 border border-field-line/15 p-2 font-mono text-[10px] text-field-cream/55 overflow-x-auto whitespace-pre">
-              name,phone,email,street,city,state,zip,source,notes
+              First Name,Last Name,Company Name,Billing Address,Billing City,Billing State,Billing Zip Code,Service Address,Service City,Service State,Service Zip Code,Cell Phone,Secondary Number,Email,Stage,Notes,Source,Existing Roof Type,Roof Type Requested,Remodel or New Construction,Homeowner or Contractor
             </pre>
           </div>
 

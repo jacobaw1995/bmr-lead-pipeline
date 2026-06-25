@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { formatFullAddress, normalizeAddress } from "@/lib/leads/address";
+import { csvRowToProfileInput } from "@/lib/leads/csv";
+import {
+  buildLeadProfileRecord,
+  validateLeadIdentity,
+  type LeadProfileInput,
+} from "@/lib/leads/profile";
 import {
   APPOINTMENT_TYPE_LABELS,
   DEFAULT_APPOINTMENT_DURATION,
@@ -17,30 +22,17 @@ import { normalizeImportedSource, resolveLeadSource } from "@/lib/leads/sources"
 import type { CsvLeadRow } from "@/lib/leads/csv";
 import type { LeadStage } from "@/types/database";
 
-export interface CreateLeadInput {
-  name: string;
-  phone?: string;
-  email?: string;
-  streetAddress?: string;
-  city?: string;
-  state?: string;
-  zip?: string;
-  sourcePicked?: string;
-  customSource?: string;
-  /** Resolved source string (import/API use) */
-  source?: string;
+export type CreateLeadInput = LeadProfileInput & {
   /** Manager CSV import — lands unclaimed in Lead Box */
   unclaimed?: boolean;
-  /** Optional note (CSV import, etc.) */
-  notes?: string;
-}
+};
 
 export async function createLead(
   input: CreateLeadInput
 ): Promise<{ success: true; leadId: string } | { success: false; error: string }> {
-  const name = input.name.trim();
-  if (!name) {
-    return { success: false, error: "Name is required." };
+  const identityError = validateLeadIdentity(input);
+  if (identityError) {
+    return { success: false, error: identityError };
   }
 
   const supabase = await createClient();
@@ -60,28 +52,14 @@ export async function createLead(
     return { success: false, error: "Enter a custom lead source or pick a standard one." };
   }
 
-  const addr = normalizeAddress(input);
-  const legacyAddress = formatFullAddress({
-    address: null,
-    street_address: addr.street_address,
-    city: addr.city,
-    state: addr.state,
-    zip: addr.zip,
-  });
+  const stage = input.stage ?? "lead_captured";
+  const profileRecord = buildLeadProfileRecord(input, source);
 
   const { data: lead, error: insertError } = await supabase
     .from("leads")
     .insert({
-      name,
-      phone: input.phone?.trim() || null,
-      email: input.email?.trim() || null,
-      address: legacyAddress,
-      street_address: addr.street_address,
-      city: addr.city,
-      state: addr.state,
-      zip: addr.zip,
-      source,
-      stage: "lead_captured",
+      ...profileRecord,
+      stage,
       status: "active",
       owner_id: input.unclaimed ? null : user.id,
     })
@@ -100,7 +78,7 @@ export async function createLead(
     actor_id: user.id,
     action: "created",
     from_value: input.unclaimed ? "csv_import" : null,
-    to_value: "lead_captured",
+    to_value: stage,
   });
 
   const noteText = input.notes?.trim();
@@ -715,25 +693,15 @@ export async function toggleMilestone(
   return { success: true };
 }
 
-export interface UpdateLeadDetailsInput {
-  name: string;
-  phone?: string;
-  email?: string;
-  streetAddress?: string;
-  city?: string;
-  state?: string;
-  zip?: string;
-  sourcePicked?: string;
-  customSource?: string;
-}
+export type UpdateLeadDetailsInput = LeadProfileInput;
 
 export async function updateLeadDetails(
   leadId: string,
   input: UpdateLeadDetailsInput
 ): Promise<{ success: true } | { success: false; error: string }> {
-  const name = input.name.trim();
-  if (!name) {
-    return { success: false, error: "Name is required." };
+  const identityError = validateLeadIdentity(input);
+  if (identityError) {
+    return { success: false, error: identityError };
   }
 
   const supabase = await createClient();
@@ -748,6 +716,12 @@ export async function updateLeadDetails(
   const access = await assertLeadEditable(supabase, leadId, user.id);
   if (!access.ok) return { success: false, error: access.error };
 
+  const { data: current } = await supabase
+    .from("leads")
+    .select("stage")
+    .eq("id", leadId)
+    .single();
+
   const source = resolveLeadSource(
     input.sourcePicked ?? "Phone Call",
     input.customSource
@@ -759,29 +733,19 @@ export async function updateLeadDetails(
     };
   }
 
-  const addr = normalizeAddress(input);
-  const legacyAddress = formatFullAddress({
-    address: null,
-    street_address: addr.street_address,
-    city: addr.city,
-    state: addr.state,
-    zip: addr.zip,
-  });
+  const profileRecord = buildLeadProfileRecord(input, source);
+  const updatePayload: Record<string, string | null> = {
+    ...profileRecord,
+    last_contacted_at: new Date().toISOString(),
+  };
+
+  if (input.stage && input.stage !== current?.stage) {
+    updatePayload.stage = input.stage;
+  }
 
   const { error: updateError } = await supabase
     .from("leads")
-    .update({
-      name,
-      phone: input.phone?.trim() || null,
-      email: input.email?.trim() || null,
-      address: legacyAddress,
-      street_address: addr.street_address,
-      city: addr.city,
-      state: addr.state,
-      zip: addr.zip,
-      source,
-      last_contacted_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq("id", leadId);
 
   if (updateError) {
@@ -792,9 +756,19 @@ export async function updateLeadDetails(
     lead_id: leadId,
     actor_id: user.id,
     action: "edited",
-    from_value: "Contact details",
+    from_value: "Lead profile",
     to_value: "updated",
   });
+
+  if (input.stage && current?.stage && input.stage !== current.stage) {
+    await supabase.from("lead_activity").insert({
+      lead_id: leadId,
+      actor_id: user.id,
+      action: "stage_changed",
+      from_value: current.stage,
+      to_value: input.stage,
+    });
+  }
 
   revalidateLeadPaths();
   return { success: true };
@@ -1184,21 +1158,21 @@ export async function importLeadsFromCsv(
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
+    const profile = csvRowToProfileInput(row);
+    const label =
+      [row.firstName, row.lastName].filter(Boolean).join(" ") ||
+      row.companyName ||
+      `Row ${i + 2}`;
+
     const result = await createLead({
-      name: row.name,
-      phone: row.phone,
-      email: row.email,
-      streetAddress: row.streetAddress,
-      city: row.city,
-      state: row.state,
-      zip: row.zip,
+      ...profile,
       source: normalizeImportedSource(row.source),
       unclaimed: true,
       notes: row.notes,
     });
 
     if (!result.success) {
-      errors.push(`Row ${i + 2} (${row.name}): ${result.error}`);
+      errors.push(`Row ${i + 2} (${label}): ${result.error}`);
       continue;
     }
     imported++;

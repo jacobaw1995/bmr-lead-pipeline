@@ -1,13 +1,28 @@
+import { parseImportStage } from "@/lib/leads/profile";
+import type { LeadStage } from "@/types/database";
+
 export interface CsvLeadRow {
-  name: string;
-  phone?: string;
+  firstName?: string;
+  lastName?: string;
+  companyName?: string;
+  billingStreetAddress?: string;
+  billingCity?: string;
+  billingState?: string;
+  billingZip?: string;
+  serviceStreetAddress?: string;
+  serviceCity?: string;
+  serviceState?: string;
+  serviceZip?: string;
+  cellPhone?: string;
+  secondaryPhone?: string;
   email?: string;
-  streetAddress?: string;
-  city?: string;
-  state?: string;
-  zip?: string;
-  source?: string;
+  stage?: LeadStage;
   notes?: string;
+  source?: string;
+  existingRoofType?: string;
+  roofTypeRequested?: string;
+  remodelOrNewConstruction?: string;
+  homeownerOrContractor?: string;
 }
 
 export interface CsvParseResult {
@@ -17,37 +32,64 @@ export interface CsvParseResult {
 }
 
 const HEADER_ALIASES: Record<string, keyof CsvLeadRow> = {
-  name: "name",
-  "full name": "name",
-  "customer name": "name",
-  "client name": "name",
-  phone: "phone",
-  "phone number": "phone",
-  mobile: "phone",
-  cell: "phone",
+  "first name": "firstName",
+  firstname: "firstName",
+  first: "firstName",
+  "last name": "lastName",
+  lastname: "lastName",
+  last: "lastName",
+  "company name": "companyName",
+  company: "companyName",
+  "billing address": "billingStreetAddress",
+  "billing street": "billingStreetAddress",
+  "billing street address": "billingStreetAddress",
+  "billing city": "billingCity",
+  "billing state": "billingState",
+  "billing zip": "billingZip",
+  "billing zip code": "billingZip",
+  "service address": "serviceStreetAddress",
+  "service street": "serviceStreetAddress",
+  "service street address": "serviceStreetAddress",
+  "service city": "serviceCity",
+  "service state": "serviceState",
+  "service zip": "serviceZip",
+  "service zip code": "serviceZip",
+  "cell phone": "cellPhone",
+  cell: "cellPhone",
+  mobile: "cellPhone",
+  "secondary number": "secondaryPhone",
+  "secondary phone": "secondaryPhone",
+  alt_phone: "secondaryPhone",
   email: "email",
   "e-mail": "email",
-  street: "streetAddress",
-  "street address": "streetAddress",
-  address: "streetAddress",
-  city: "city",
-  state: "state",
-  st: "state",
-  zip: "zip",
-  "zip code": "zip",
-  zipcode: "zip",
-  postal: "zip",
-  source: "source",
-  "lead source": "source",
+  stage: "stage",
+  pipeline_stage: "stage",
   notes: "notes",
   note: "notes",
   comments: "notes",
-  comment: "notes",
-  "additional info": "notes",
-  "additional information": "notes",
-  details: "notes",
-  description: "notes",
-  memo: "notes",
+  source: "source",
+  "lead source": "source",
+  "existing roof type": "existingRoofType",
+  existing_roof: "existingRoofType",
+  "roof type requested": "roofTypeRequested",
+  requested_roof: "roofTypeRequested",
+  "remodel or new construction": "remodelOrNewConstruction",
+  remodel_or_new: "remodelOrNewConstruction",
+  "homeowner or contractor": "homeownerOrContractor",
+  customer_type: "homeownerOrContractor",
+  // Legacy single-field headers (still supported)
+  name: "firstName",
+  "full name": "firstName",
+  "customer name": "firstName",
+  phone: "cellPhone",
+  "phone number": "cellPhone",
+  street: "serviceStreetAddress",
+  "street address": "serviceStreetAddress",
+  address: "serviceStreetAddress",
+  city: "serviceCity",
+  state: "serviceState",
+  zip: "serviceZip",
+  "zip code": "serviceZip",
 };
 
 function parseCsvLine(line: string): string[] {
@@ -93,6 +135,45 @@ function cellToString(value: unknown): string {
   return String(value).trim();
 }
 
+function splitLegacyName(full: string): { firstName: string; lastName: string } {
+  const trimmed = full.trim();
+  const space = trimmed.indexOf(" ");
+  if (space === -1) return { firstName: trimmed, lastName: "" };
+  return {
+    firstName: trimmed.slice(0, space),
+    lastName: trimmed.slice(space + 1).trim(),
+  };
+}
+
+function hasIdentity(row: CsvLeadRow): boolean {
+  return !!(
+    row.firstName?.trim() ||
+    row.lastName?.trim() ||
+    row.companyName?.trim()
+  );
+}
+
+function applyParsedValue(
+  row: CsvLeadRow,
+  key: keyof CsvLeadRow,
+  value: string,
+  rowNum: number,
+  warnings: string[]
+) {
+  if (key === "stage") {
+    const stage = parseImportStage(value);
+    if (stage) {
+      row.stage = stage;
+    } else {
+      warnings.push(
+        `Row ${rowNum}: unrecognized stage "${value}" — defaulted to Lead Captured.`
+      );
+    }
+    return;
+  }
+  row[key] = value;
+}
+
 export function parseLeadRowsFromGrid(grid: unknown[][]): CsvParseResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -118,19 +199,25 @@ export function parseLeadRowsFromGrid(grid: unknown[][]): CsvParseResult {
     columnMap[i] === null ? h : ""
   );
 
+  const hasIdentityColumn = columnMap.some(
+    (k) => k === "firstName" || k === "lastName" || k === "companyName"
+  );
+
+  if (!hasIdentityColumn) {
+    return {
+      rows: [],
+      errors: [
+        "Spreadsheet needs First Name, Last Name, or Company Name (legacy Name column also works).",
+      ],
+      warnings: [],
+    };
+  }
+
   const unmappedCount = extraColumnLabels.filter(Boolean).length;
   if (unmappedCount > 0) {
     warnings.push(
-      `${unmappedCount} extra column${unmappedCount === 1 ? "" : "s"} will be saved as notes on each lead.`
+      `${unmappedCount} unrecognized column${unmappedCount === 1 ? "" : "s"} will be appended to notes on each lead.`
     );
-  }
-
-  if (!columnMap.includes("name")) {
-    return {
-      rows: [],
-      errors: ['Spreadsheet must include a "name" column.'],
-      warnings,
-    };
   }
 
   const rows: CsvLeadRow[] = [];
@@ -139,23 +226,30 @@ export function parseLeadRowsFromGrid(grid: unknown[][]): CsvParseResult {
     const cells = normalizedRows[i];
     if (cells.every((c) => !c)) continue;
 
-    const row: CsvLeadRow = { name: "" };
+    const row: CsvLeadRow = {};
     const extraParts: string[] = [];
+    const rowNum = i + 1;
 
     columnMap.forEach((key, colIdx) => {
       const value = cells[colIdx]?.trim();
       if (!value) return;
 
       if (key) {
-        row[key] = value;
+        applyParsedValue(row, key, value, rowNum, warnings);
       } else {
         const label = extraColumnLabels[colIdx] || `column ${colIdx + 1}`;
         extraParts.push(`${label}: ${value}`);
       }
     });
 
-    if (!row.name) {
-      errors.push(`Row ${i + 1}: missing name — skipped.`);
+    if (row.firstName && !row.lastName && row.firstName.includes(" ")) {
+      const split = splitLegacyName(row.firstName);
+      row.firstName = split.firstName;
+      row.lastName = row.lastName || split.lastName;
+    }
+
+    if (!hasIdentity(row)) {
+      errors.push(`Row ${rowNum}: missing name or company — skipped.`);
       continue;
     }
 
@@ -190,4 +284,34 @@ export function parseLeadsCsv(text: string): CsvParseResult {
 
   const grid = lines.map(parseCsvLine);
   return parseLeadRowsFromGrid(grid);
+}
+
+export function csvRowToProfileInput(row: CsvLeadRow) {
+  return {
+    firstName: row.firstName,
+    lastName: row.lastName,
+    companyName: row.companyName,
+    billing: {
+      streetAddress: row.billingStreetAddress,
+      city: row.billingCity,
+      state: row.billingState,
+      zip: row.billingZip,
+    },
+    service: {
+      streetAddress: row.serviceStreetAddress,
+      city: row.serviceCity,
+      state: row.serviceState,
+      zip: row.serviceZip,
+    },
+    cellPhone: row.cellPhone,
+    secondaryPhone: row.secondaryPhone,
+    email: row.email,
+    stage: row.stage,
+    source: row.source,
+    existingRoofType: row.existingRoofType,
+    roofTypeRequested: row.roofTypeRequested,
+    remodelOrNewConstruction: row.remodelOrNewConstruction,
+    homeownerOrContractor: row.homeownerOrContractor,
+    notes: row.notes,
+  };
 }
