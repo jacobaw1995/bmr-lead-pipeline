@@ -23,7 +23,6 @@ import {
 } from "@/lib/leads/constants";
 import type { LeadStage, UserRole } from "@/types/database";
 import { AddLeadModal } from "./AddLeadModal";
-import { DraggableLeadCard } from "./DraggableLeadCard";
 import { LeadCard } from "./LeadCard";
 import { LeadDetailPanel } from "./LeadDetailPanel";
 import { PipelineColumn } from "./PipelineColumn";
@@ -62,7 +61,11 @@ export function FieldBoard({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const grouped = useMemo(() => groupLeadsByStage(leads), [leads]);
-  const leadBoxLeads = grouped.lead_captured;
+  const capturedLeads = grouped.lead_captured;
+  const unclaimedCaptured = useMemo(
+    () => capturedLeads.filter((l) => !l.owner_id),
+    [capturedLeads]
+  );
 
   const activeLead = useMemo(() => {
     if (!activeDragId) return null;
@@ -181,9 +184,13 @@ export function FieldBoard({
                   Lead Box
                 </h2>
                 <p className="text-xs text-field-cream/50 mt-0.5">
-                  {leadBoxLeads.length === 0
-                    ? "Drag leads onto the field below — or add one manually"
-                    : `${leadBoxLeads.length} lead${leadBoxLeads.length === 1 ? "" : "s"} at Lead Captured`}
+                  {capturedLeads.length === 0
+                    ? "New leads land in the Lead Captured column below"
+                    : `${capturedLeads.length} in Lead Captured${
+                        unclaimedCaptured.length > 0
+                          ? ` · ${unclaimedCaptured.length} unclaimed`
+                          : ""
+                      }`}
                 </p>
               </div>
               <button
@@ -193,32 +200,6 @@ export function FieldBoard({
                 + Add Lead
               </button>
             </div>
-
-            {leadBoxLeads.length === 0 ? (
-              <div className="mt-3 rounded-lg border border-dashed border-field-line/30 p-6 text-center">
-                <p className="text-field-cream/40 text-sm">No leads in the box</p>
-                <button
-                  onClick={() => setModalOpen(true)}
-                  className="mt-2 text-sm text-field-gold hover:underline"
-                >
-                  Add your first lead
-                </button>
-              </div>
-            ) : (
-              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {leadBoxLeads.map((lead) => (
-                  <DraggableLeadCard
-                    key={lead.id}
-                    lead={lead}
-                    currentUserId={currentUserId}
-                    currentUserRole={currentUserRole}
-                    onBlocked={showBlocked}
-                    onOpenDetail={handleOpenDetail}
-                    isDragging={activeDragId === `lead:${lead.id}`}
-                  />
-                ))}
-              </div>
-            )}
           </div>
         </div>
 
@@ -236,18 +217,12 @@ export function FieldBoard({
                     stage={stage.key}
                     label={stage.label}
                     index={index}
-                    leads={
-                      stage.key === "lead_captured"
-                        ? []
-                        : grouped[stage.key as LeadStage]
-                    }
+                    leads={grouped[stage.key as LeadStage]}
                     currentUserId={currentUserId}
                     currentUserRole={currentUserRole}
                     onBlocked={showBlocked}
                     onOpenDetail={handleOpenDetail}
                     activeDragId={activeDragId}
-                    isLeadCapturedDropZone={stage.key === "lead_captured"}
-                    leadCapturedCount={leadBoxLeads.length}
                   />
                 ))}
               </div>

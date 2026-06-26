@@ -16,8 +16,6 @@ interface PipelineColumnProps {
   onBlocked: (message: string) => void;
   onOpenDetail: (lead: LeadWithOwner) => void;
   activeDragId: string | null;
-  isLeadCapturedDropZone?: boolean;
-  leadCapturedCount?: number;
 }
 
 export function PipelineColumn({
@@ -30,8 +28,6 @@ export function PipelineColumn({
   onBlocked,
   onOpenDetail,
   activeDragId,
-  isLeadCapturedDropZone = false,
-  leadCapturedCount = 0,
 }: PipelineColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: stageDroppableId(stage),
@@ -55,7 +51,7 @@ export function PipelineColumn({
             <h3 className="text-sm font-semibold text-field-cream">{label}</h3>
           </div>
           <span className="text-xs font-mono text-field-cream/40">
-            {isLeadCapturedDropZone ? leadCapturedCount : leads.length}
+            {leads.length}
           </span>
         </div>
       </div>
@@ -68,15 +64,7 @@ export function PipelineColumn({
             : ""
         }`}
       >
-        {isLeadCapturedDropZone ? (
-          <div className="flex-1 rounded border border-dashed border-field-line/25 flex items-center justify-center p-4">
-            <p className="text-xs text-field-cream/40 text-center leading-relaxed">
-              {leadCapturedCount > 0
-                ? `${leadCapturedCount} lead${leadCapturedCount === 1 ? "" : "s"} in Lead Box above — drop here to return`
-                : "Drop here to move back to Lead Captured"}
-            </p>
-          </div>
-        ) : leads.length === 0 ? (
+        {leads.length === 0 ? (
           <div className="flex-1 rounded border border-dashed border-field-line/20 flex items-center justify-center">
             <p className="text-xs text-field-cream/30">Drop leads here</p>
           </div>
