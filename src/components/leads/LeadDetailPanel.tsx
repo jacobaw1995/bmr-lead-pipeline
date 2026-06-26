@@ -124,9 +124,10 @@ export function LeadDetailPanel({
               loading={loading}
               canEdit={canEdit}
               isManager={isManager}
-              onUpdated={handleRefresh}
-              accordion
-            />
+            onUpdated={handleRefresh}
+            onDeleted={onClose}
+            accordion
+          />
           </div>
           <button
             onClick={onClose}
@@ -161,6 +162,7 @@ export function LeadDetailPanel({
             canEdit={canEdit}
             isManager={isManager}
             onUpdated={handleRefresh}
+            onDeleted={onClose}
           />
         </div>
       </div>

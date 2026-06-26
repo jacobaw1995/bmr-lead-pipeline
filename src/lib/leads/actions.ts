@@ -28,6 +28,7 @@ import type { Lead, LeadStage } from "@/types/database";
 export type CreateLeadInput = LeadProfileInput & {
   /** Manager CSV import — lands unclaimed in Lead Box */
   unclaimed?: boolean;
+  importBatchId?: string;
 };
 
 export async function createLead(
@@ -65,6 +66,7 @@ export async function createLead(
       stage,
       status: "active",
       owner_id: input.unclaimed ? null : user.id,
+      import_batch_id: input.importBatchId ?? null,
     })
     .select("id")
     .single();
@@ -1302,9 +1304,11 @@ export interface ImportLeadsResult {
 }
 
 export async function importLeadsFromCsv(
-  rows: CsvLeadRow[]
+  rows: CsvLeadRow[],
+  filename?: string
 ): Promise<
-  { success: true; result: ImportLeadsResult } | { success: false; error: string }
+  | { success: true; result: ImportLeadsResult; batchId: string }
+  | { success: false; error: string }
 > {
   if (!rows.length) {
     return { success: false, error: "No leads to import." };
@@ -1329,6 +1333,26 @@ export async function importLeadsFromCsv(
     return { success: false, error: "Only managers can import leads." };
   }
 
+  const { data: batch, error: batchError } = await supabase
+    .from("lead_import_batches")
+    .insert({
+      imported_by: user.id,
+      filename: filename?.trim() || null,
+      row_count: rows.length,
+      imported_count: 0,
+      skipped_count: 0,
+      status: "active",
+    })
+    .select("id")
+    .single();
+
+  if (batchError || !batch) {
+    return {
+      success: false,
+      error: batchError?.message ?? "Could not create import record.",
+    };
+  }
+
   let imported = 0;
   const errors: string[] = [];
 
@@ -1345,6 +1369,7 @@ export async function importLeadsFromCsv(
       source: normalizeImportedSource(row.source),
       unclaimed: true,
       notes: row.notes,
+      importBatchId: batch.id,
     });
 
     if (!result.success) {
@@ -1354,14 +1379,172 @@ export async function importLeadsFromCsv(
     imported++;
   }
 
+  await supabase
+    .from("lead_import_batches")
+    .update({
+      imported_count: imported,
+      skipped_count: rows.length - imported,
+    })
+    .eq("id", batch.id);
+
   revalidatePath("/", "layout");
 
   return {
     success: true,
+    batchId: batch.id,
     result: {
       imported,
       skipped: rows.length - imported,
       errors,
     },
   };
+}
+
+export async function fetchImportBatches(): Promise<
+  import("@/lib/leads/imports").ImportBatchSummary[] | { error: string }
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "You must be signed in." };
+
+  const { assertManager, getImportBatches } = await import("@/lib/leads/imports");
+  const access = await assertManager(supabase, user.id);
+  if (!access.ok) return { error: access.error };
+
+  return getImportBatches();
+}
+
+export async function undoImportBatch(
+  batchId: string
+): Promise<
+  | { success: true; deletedCount: number }
+  | { success: false; error: string }
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "You must be signed in." };
+  }
+
+  const { assertManager } = await import("@/lib/leads/imports");
+  const access = await assertManager(supabase, user.id);
+  if (!access.ok) return { success: false, error: access.error };
+
+  const { data: batch } = await supabase
+    .from("lead_import_batches")
+    .select("id, status")
+    .eq("id", batchId)
+    .single();
+
+  if (!batch) {
+    return { success: false, error: "Import batch not found." };
+  }
+
+  if (batch.status === "undone") {
+    return { success: false, error: "This import was already undone." };
+  }
+
+  const { data: leads } = await supabase
+    .from("leads")
+    .select("id")
+    .eq("import_batch_id", batchId);
+
+  const leadIds = (leads ?? []).map((l) => l.id);
+
+  if (leadIds.length > 0) {
+    const { error: deleteError } = await supabase
+      .from("leads")
+      .delete()
+      .in("id", leadIds);
+
+    if (deleteError) {
+      return { success: false, error: deleteError.message };
+    }
+  }
+
+  const { error: updateError } = await supabase
+    .from("lead_import_batches")
+    .update({
+      status: "undone",
+      undone_at: new Date().toISOString(),
+      undone_by: user.id,
+    })
+    .eq("id", batchId);
+
+  if (updateError) {
+    return { success: false, error: updateError.message };
+  }
+
+  revalidateLeadPaths();
+  return { success: true, deletedCount: leadIds.length };
+}
+
+export async function wipeOrphanCsvImports(): Promise<
+  | { success: true; deletedCount: number }
+  | { success: false; error: string }
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "You must be signed in." };
+  }
+
+  const { assertManager, getOrphanCsvImportLeadIds } = await import(
+    "@/lib/leads/imports"
+  );
+  const access = await assertManager(supabase, user.id);
+  if (!access.ok) return { success: false, error: access.error };
+
+  const leadIds = await getOrphanCsvImportLeadIds();
+
+  if (leadIds.length === 0) {
+    return { success: true, deletedCount: 0 };
+  }
+
+  const { error: deleteError } = await supabase
+    .from("leads")
+    .delete()
+    .in("id", leadIds);
+
+  if (deleteError) {
+    return { success: false, error: deleteError.message };
+  }
+
+  revalidateLeadPaths();
+  return { success: true, deletedCount: leadIds.length };
+}
+
+export async function deleteLead(
+  leadId: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "You must be signed in." };
+  }
+
+  const { assertManager } = await import("@/lib/leads/imports");
+  const access = await assertManager(supabase, user.id);
+  if (!access.ok) return { success: false, error: access.error };
+
+  const { error } = await supabase.from("leads").delete().eq("id", leadId);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  revalidateLeadPaths();
+  return { success: true };
 }

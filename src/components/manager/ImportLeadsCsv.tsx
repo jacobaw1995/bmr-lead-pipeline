@@ -45,7 +45,7 @@ export function ImportLeadsCsv() {
       return;
     }
 
-    const importResult = await importLeadsFromCsv(parsed.rows);
+    const importResult = await importLeadsFromCsv(parsed.rows, file.name);
 
     if (!importResult.success) {
       setError(importResult.error);

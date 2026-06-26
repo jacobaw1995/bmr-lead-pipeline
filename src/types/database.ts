@@ -85,6 +85,22 @@ export interface Lead {
   updated_at: string;
   closed_at: string | null;
   intake_checklist: Record<string, unknown> | null;
+  import_batch_id: string | null;
+}
+
+export type ImportBatchStatus = "active" | "undone";
+
+export interface LeadImportBatch {
+  id: string;
+  imported_by: string;
+  filename: string | null;
+  row_count: number;
+  imported_count: number;
+  skipped_count: number;
+  status: ImportBatchStatus;
+  created_at: string;
+  undone_at: string | null;
+  undone_by: string | null;
 }
 
 export interface LeadNote {

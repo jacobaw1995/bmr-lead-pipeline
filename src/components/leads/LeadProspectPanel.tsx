@@ -14,6 +14,7 @@ import {
 } from "@/lib/leads/profile";
 import { phoneTelHref } from "@/lib/leads/phone";
 import type { LeadHistory, LeadWithOwner } from "@/lib/leads/types";
+import { DeleteLeadButton } from "./DeleteLeadButton";
 import { LeadActivityTrail } from "./LeadActivityTrail";
 import { LeadEditDetails } from "./LeadEditDetails";
 import { LeadOwnerReassign } from "./LeadOwnerReassign";
@@ -25,6 +26,7 @@ interface LeadProspectPanelProps {
   canEdit: boolean;
   isManager: boolean;
   onUpdated: () => void;
+  onDeleted?: () => void;
   /** When true, render as collapsible accordion (mobile). */
   accordion?: boolean;
 }
@@ -34,11 +36,13 @@ function ProspectFields({
   canEdit,
   isManager,
   onUpdated,
+  onDeleted,
 }: {
   lead: LeadWithOwner;
   canEdit: boolean;
   isManager: boolean;
   onUpdated: () => void;
+  onDeleted?: () => void;
 }) {
   const router = useRouter();
   const displayName = formatLeadDisplayName(lead);
@@ -214,6 +218,8 @@ function ProspectFields({
       {canEdit && isActive && (
         <LeadEditDetails lead={lead} onUpdated={onUpdated} />
       )}
+
+      {isManager && <DeleteLeadButton lead={lead} onDeleted={onDeleted} />}
     </div>
   );
 }
@@ -225,6 +231,7 @@ export function LeadProspectPanel({
   canEdit,
   isManager,
   onUpdated,
+  onDeleted,
   accordion = false,
 }: LeadProspectPanelProps) {
   const [prospectOpen, setProspectOpen] = useState(false);
@@ -253,6 +260,7 @@ export function LeadProspectPanel({
               canEdit={canEdit}
               isManager={isManager}
               onUpdated={onUpdated}
+              onDeleted={onDeleted}
             />
           </div>
         )}
@@ -294,6 +302,7 @@ export function LeadProspectPanel({
             canEdit={canEdit}
             isManager={isManager}
             onUpdated={onUpdated}
+            onDeleted={onDeleted}
           />
         </section>
 
