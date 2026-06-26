@@ -1,7 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { PIPELINE_STAGES } from "@/lib/leads/constants";
-import type { LeadProfileInput } from "@/lib/leads/profile";
+import {
+  addressFieldsEqual,
+  copyAddressFields,
+  type AddressFields,
+  type LeadProfileInput,
+} from "@/lib/leads/profile";
 import { LeadSourcePicker } from "./LeadSourcePicker";
 import { RoofTypeMultiSelect } from "./RoofTypeMultiSelect";
 
@@ -33,16 +39,53 @@ export function LeadProfileForm({
   showStage = false,
   compact = false,
 }: LeadProfileFormProps) {
+  const [billingSameAsService, setBillingSameAsService] = useState(() =>
+    addressFieldsEqual(value.billing, value.service)
+  );
+  const [serviceSameAsBilling, setServiceSameAsBilling] = useState(() =>
+    addressFieldsEqual(value.billing, value.service)
+  );
+
   function patch(partial: Partial<LeadProfileInput>) {
     onChange({ ...value, ...partial });
   }
 
-  function patchBilling(partial: Partial<NonNullable<LeadProfileInput["billing"]>>) {
-    onChange({ ...value, billing: { ...value.billing, ...partial } });
+  function patchBilling(partial: Partial<AddressFields>) {
+    const nextBilling = { ...value.billing, ...partial };
+    const next: LeadProfileInput = { ...value, billing: nextBilling };
+    if (serviceSameAsBilling) {
+      next.service = copyAddressFields(nextBilling);
+    }
+    onChange(next);
   }
 
-  function patchService(partial: Partial<NonNullable<LeadProfileInput["service"]>>) {
-    onChange({ ...value, service: { ...value.service, ...partial } });
+  function patchService(partial: Partial<AddressFields>) {
+    const nextService = { ...value.service, ...partial };
+    const next: LeadProfileInput = { ...value, service: nextService };
+    if (billingSameAsService) {
+      next.billing = copyAddressFields(nextService);
+    }
+    onChange(next);
+  }
+
+  function handleBillingSameAsService(checked: boolean) {
+    setBillingSameAsService(checked);
+    if (checked) {
+      onChange({
+        ...value,
+        billing: copyAddressFields(value.service),
+      });
+    }
+  }
+
+  function handleServiceSameAsBilling(checked: boolean) {
+    setServiceSameAsBilling(checked);
+    if (checked) {
+      onChange({
+        ...value,
+        service: copyAddressFields(value.billing),
+      });
+    }
   }
 
   const sectionClass = compact
@@ -113,23 +156,34 @@ export function LeadProfileForm({
       </section>
 
       <section className={sectionClass}>
-        {!compact && (
+        {!compact ? (
           <h4 className="text-[10px] font-semibold uppercase tracking-wider text-field-gold/80">
             Billing address
           </h4>
+        ) : (
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-field-gold/70">
+            Billing address
+          </p>
         )}
+        <AddressSameToggle
+          checked={billingSameAsService}
+          onChange={handleBillingSameAsService}
+          label="Same as service address"
+        />
         <Field label="Street">
           <input
             type="text"
             value={value.billing?.streetAddress ?? ""}
             onChange={(e) => patchBilling({ streetAddress: e.target.value })}
-            className={inputClass}
+            disabled={billingSameAsService}
+            className={`${inputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
           />
         </Field>
         <AddressCityStateZip
           city={value.billing?.city ?? ""}
           state={value.billing?.state ?? ""}
           zip={value.billing?.zip ?? ""}
+          disabled={billingSameAsService}
           onCity={(v) => patchBilling({ city: v })}
           onState={(v) => patchBilling({ state: v })}
           onZip={(v) => patchBilling({ zip: v })}
@@ -137,23 +191,34 @@ export function LeadProfileForm({
       </section>
 
       <section className={sectionClass}>
-        {!compact && (
+        {!compact ? (
           <h4 className="text-[10px] font-semibold uppercase tracking-wider text-field-gold/80">
             Service address (job site)
           </h4>
+        ) : (
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-field-gold/70">
+            Service address
+          </p>
         )}
+        <AddressSameToggle
+          checked={serviceSameAsBilling}
+          onChange={handleServiceSameAsBilling}
+          label="Same as billing address"
+        />
         <Field label="Street">
           <input
             type="text"
             value={value.service?.streetAddress ?? ""}
             onChange={(e) => patchService({ streetAddress: e.target.value })}
-            className={inputClass}
+            disabled={serviceSameAsBilling}
+            className={`${inputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
           />
         </Field>
         <AddressCityStateZip
           city={value.service?.city ?? ""}
           state={value.service?.state ?? ""}
           zip={value.service?.zip ?? ""}
+          disabled={serviceSameAsBilling}
           onCity={(v) => patchService({ city: v })}
           onState={(v) => patchService({ state: v })}
           onZip={(v) => patchService({ zip: v })}
@@ -246,10 +311,33 @@ export function LeadProfileForm({
   );
 }
 
+function AddressSameToggle({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
+}) {
+  return (
+    <label className="flex items-center gap-2 text-xs text-field-cream/60 cursor-pointer select-none">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="accent-field-gold shrink-0"
+      />
+      {label}
+    </label>
+  );
+}
+
 function AddressCityStateZip({
   city,
   state,
   zip,
+  disabled = false,
   onCity,
   onState,
   onZip,
@@ -257,10 +345,13 @@ function AddressCityStateZip({
   city: string;
   state: string;
   zip: string;
+  disabled?: boolean;
   onCity: (v: string) => void;
   onState: (v: string) => void;
   onZip: (v: string) => void;
 }) {
+  const fieldClass = `${inputClass} disabled:opacity-50 disabled:cursor-not-allowed`;
+
   return (
     <div className="grid grid-cols-6 gap-2">
       <Field label="City" className="col-span-3">
@@ -268,7 +359,8 @@ function AddressCityStateZip({
           type="text"
           value={city}
           onChange={(e) => onCity(e.target.value)}
-          className={inputClass}
+          disabled={disabled}
+          className={fieldClass}
         />
       </Field>
       <Field label="ST" className="col-span-1">
@@ -277,7 +369,8 @@ function AddressCityStateZip({
           value={state}
           onChange={(e) => onState(e.target.value.toUpperCase().slice(0, 2))}
           maxLength={2}
-          className={inputClass}
+          disabled={disabled}
+          className={fieldClass}
         />
       </Field>
       <Field label="ZIP" className="col-span-2">
@@ -286,7 +379,8 @@ function AddressCityStateZip({
           value={zip}
           onChange={(e) => onZip(e.target.value)}
           maxLength={10}
-          className={inputClass}
+          disabled={disabled}
+          className={fieldClass}
         />
       </Field>
     </div>

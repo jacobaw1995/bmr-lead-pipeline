@@ -8,6 +8,34 @@ export interface AddressFields {
   zip?: string;
 }
 
+export function copyAddressFields(from?: AddressFields): AddressFields {
+  return {
+    streetAddress: from?.streetAddress ?? "",
+    city: from?.city ?? "",
+    state: from?.state ?? "",
+    zip: from?.zip ?? "",
+  };
+}
+
+export function addressFieldsEqual(
+  a?: AddressFields,
+  b?: AddressFields
+): boolean {
+  const left = normalizeAddressFields(a);
+  const right = normalizeAddressFields(b);
+  const leftEmpty =
+    !left.street_address && !left.city && !left.state && !left.zip;
+  const rightEmpty =
+    !right.street_address && !right.city && !right.state && !right.zip;
+  if (leftEmpty && rightEmpty) return false;
+  return (
+    left.street_address === right.street_address &&
+    left.city === right.city &&
+    left.state === right.state &&
+    left.zip === right.zip
+  );
+}
+
 export interface LeadProfileInput {
   firstName?: string;
   lastName?: string;

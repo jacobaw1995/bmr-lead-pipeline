@@ -1,10 +1,4 @@
 import { redirect } from "next/navigation";
-import { ImportHistory } from "@/components/manager/ImportHistory";
-import { ImportLeadsCsv } from "@/components/manager/ImportLeadsCsv";
-import {
-  getImportBatches,
-  getOrphanCsvImportCount,
-} from "@/lib/leads/imports";
 import { TeamOverview } from "@/components/manager/TeamOverview";
 import { TeamScheduleToday } from "@/components/manager/TeamScheduleToday";
 import { getTeamOverview } from "@/lib/manager/queries";
@@ -22,13 +16,10 @@ export default async function ManagerPage() {
     redirect("/locker");
   }
 
-  const [overview, teamSchedule, importBatches, orphanCount] =
-    await Promise.all([
-      getTeamOverview(),
-      getTeamAppointmentsToday(),
-      getImportBatches(),
-      getOrphanCsvImportCount(),
-    ]);
+  const [overview, teamSchedule] = await Promise.all([
+    getTeamOverview(),
+    getTeamAppointmentsToday(),
+  ]);
 
   return (
     <div className="px-4 py-6 sm:py-8">
@@ -47,8 +38,6 @@ export default async function ManagerPage() {
         </div>
 
         <div className="space-y-8">
-          <ImportLeadsCsv />
-          <ImportHistory batches={importBatches} orphanCount={orphanCount} />
           <TeamScheduleToday appointments={teamSchedule} />
           <TeamOverview data={overview} />
         </div>
