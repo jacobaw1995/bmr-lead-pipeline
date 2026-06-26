@@ -12,7 +12,7 @@ import {
   formatLeadDisplayName,
   getPrimaryPhone,
 } from "@/lib/leads/profile";
-import { phoneTelHref } from "@/lib/leads/phone";
+import { PhoneContactLink } from "./PhoneContactLink";
 import type { LeadHistory, LeadWithOwner } from "@/lib/leads/types";
 import { DeleteLeadButton } from "./DeleteLeadButton";
 import { LeadActivityTrail } from "./LeadActivityTrail";
@@ -92,19 +92,19 @@ function ProspectFields({
           <p className="text-[10px] uppercase tracking-wide text-field-cream/40 mb-1">
             Phone
           </p>
-          {phoneTelHref(primaryPhone) ? (
-            <a
-              href={phoneTelHref(primaryPhone)}
-              className="text-field-cream/80 hover:text-field-gold transition"
-            >
-              {primaryPhone}
-            </a>
-          ) : (
-            <p className="text-field-cream/80">{primaryPhone}</p>
-          )}
+          <PhoneContactLink
+            phone={primaryPhone}
+            className="text-field-cream/80 hover:text-field-gold transition text-left"
+          />
           {lead.secondary_phone && (
             <p className="text-xs text-field-cream/50 mt-1">
-              Secondary: {lead.secondary_phone}
+              Secondary:{" "}
+              <PhoneContactLink
+                phone={lead.secondary_phone}
+                className="hover:text-field-gold transition"
+              >
+                {lead.secondary_phone}
+              </PhoneContactLink>
             </p>
           )}
         </div>

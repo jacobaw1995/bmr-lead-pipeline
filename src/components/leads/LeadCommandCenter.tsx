@@ -25,7 +25,7 @@ import {
   type CommandStageKey,
 } from "@/lib/leads/command-center";
 import { formatLeadDisplayName, getPrimaryPhone } from "@/lib/leads/profile";
-import { phoneTelHref } from "@/lib/leads/phone";
+import { phoneSmsHref, phoneTelHref } from "@/lib/leads/phone";
 import type { LeadWithOwner, NoteWithAuthor } from "@/lib/leads/types";
 import { ClaimLeadButton } from "./ClaimLeadButton";
 import { LeadIntakeChecklist } from "./LeadIntakeChecklist";
@@ -332,6 +332,14 @@ export function LeadCommandCenter({
                   className="min-h-[48px] flex items-center justify-center rounded-xl border border-field-line/25 bg-field-dark/40 px-3 text-sm font-semibold text-field-cream hover:bg-field-turf/25 hover:border-field-gold/40 transition"
                 >
                   Call
+                </a>
+              )}
+              {primaryPhone && phoneSmsHref(primaryPhone) && (
+                <a
+                  href={phoneSmsHref(primaryPhone)}
+                  className="min-h-[48px] flex items-center justify-center rounded-xl border border-field-line/25 bg-field-dark/40 px-3 text-sm font-semibold text-field-cream hover:bg-field-turf/25 hover:border-field-gold/40 transition"
+                >
+                  Text
                 </a>
               )}
               {lead.email && (

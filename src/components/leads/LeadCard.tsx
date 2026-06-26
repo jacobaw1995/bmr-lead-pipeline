@@ -5,7 +5,7 @@ import {
   getDisplayAppointment,
 } from "@/lib/leads/appointments";
 import { getMilestoneProgress } from "@/lib/leads/milestones";
-import { phoneTelHref } from "@/lib/leads/phone";
+
 import type { LeadWithOwner } from "@/lib/leads/types";
 import { getSourceDisplayLabel } from "@/lib/leads/constants";
 import type { LeadStage } from "@/types/database";
@@ -44,7 +44,6 @@ export function LeadCard({
     (VALUE_STAGES.includes(lead.stage) || lead.value != null);
   const displayName = formatLeadDisplayName(lead);
   const primaryPhone = getPrimaryPhone(lead);
-  const telHref = primaryPhone ? phoneTelHref(primaryPhone) : "";
   const clickable = Boolean(onOpenDetail && !isOverlay);
 
   function stopOpen(e: React.SyntheticEvent) {
@@ -96,18 +95,7 @@ export function LeadCard({
       </div>
 
       <div className="mt-2 space-y-1 text-xs text-field-cream/50">
-        {primaryPhone && telHref && !isOverlay ? (
-          <a
-            href={telHref}
-            onClick={stopOpen}
-            onPointerDown={stopOpen}
-            className="block text-field-cream/70 hover:text-field-gold transition"
-          >
-            {primaryPhone}
-          </a>
-        ) : primaryPhone ? (
-          <p>{primaryPhone}</p>
-        ) : null}
+        {primaryPhone && <p>{primaryPhone}</p>}
         {location && <p className="truncate">{location}</p>}
         {displayApt && (
           <span

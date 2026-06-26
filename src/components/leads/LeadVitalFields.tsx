@@ -14,6 +14,7 @@ import {
   type IntakeChecklistData,
 } from "@/lib/leads/intake-checklist";
 import type { LeadWithOwner, NoteWithAuthor } from "@/lib/leads/types";
+import { PhoneContactLink } from "./PhoneContactLink";
 import { RoofTypeMultiSelect } from "./RoofTypeMultiSelect";
 
 const inputClass =
@@ -128,7 +129,12 @@ function VitalFieldCard({
           {field.label}
         </p>
         {field.value ? (
-          field.href ? (
+          field.type === "phone" ? (
+            <PhoneContactLink
+              phone={field.value}
+              className="text-sm font-medium text-field-cream leading-snug hover:text-field-gold transition text-left"
+            />
+          ) : field.href ? (
             <a
               href={field.href}
               target="_blank"
