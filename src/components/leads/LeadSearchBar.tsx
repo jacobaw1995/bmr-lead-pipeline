@@ -21,7 +21,25 @@ interface LeadSearchBarProps {
 }
 
 const selectClass =
-  "w-full min-h-[48px] rounded-lg border border-field-line/30 bg-field-turf/10 px-3 py-2 text-sm text-field-cream focus:outline-none focus:ring-2 focus:ring-field-gold/40 cursor-pointer";
+  "w-full h-9 rounded-md border border-field-line/30 bg-field-turf/10 px-2.5 py-1.5 text-xs text-field-cream focus:outline-none focus:ring-2 focus:ring-field-gold/40 cursor-pointer";
+
+function FilterIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+    </svg>
+  );
+}
 
 export function LeadSearchBar({
   leads,
@@ -48,14 +66,20 @@ export function LeadSearchBar({
 
   function clearFilters() {
     onFiltersChange(DEFAULT_LEAD_SEARCH_FILTERS);
+    setFiltersOpen(false);
   }
 
+  const countLabel =
+    filteredCount === total
+      ? `${total} lead${total === 1 ? "" : "s"}`
+      : `${filteredCount} of ${total}`;
+
   const filterFields = (
-    <>
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 pt-2">
       <div>
         <label
           htmlFor="lead-filter-stage"
-          className="text-[10px] uppercase tracking-wide text-field-cream/40 mb-1 block"
+          className="text-[10px] uppercase tracking-wide text-field-cream/40 mb-0.5 block"
         >
           Stage
         </label>
@@ -77,7 +101,7 @@ export function LeadSearchBar({
       <div>
         <label
           htmlFor="lead-filter-ownership"
-          className="text-[10px] uppercase tracking-wide text-field-cream/40 mb-1 block"
+          className="text-[10px] uppercase tracking-wide text-field-cream/40 mb-0.5 block"
         >
           Ownership
         </label>
@@ -102,7 +126,7 @@ export function LeadSearchBar({
       <div>
         <label
           htmlFor="lead-filter-source"
-          className="text-[10px] uppercase tracking-wide text-field-cream/40 mb-1 block"
+          className="text-[10px] uppercase tracking-wide text-field-cream/40 mb-0.5 block"
         >
           Source
         </label>
@@ -124,7 +148,7 @@ export function LeadSearchBar({
       <div>
         <label
           htmlFor="lead-filter-city"
-          className="text-[10px] uppercase tracking-wide text-field-cream/40 mb-1 block"
+          className="text-[10px] uppercase tracking-wide text-field-cream/40 mb-0.5 block"
         >
           City
         </label>
@@ -142,14 +166,14 @@ export function LeadSearchBar({
           ))}
         </select>
       </div>
-    </>
+    </div>
   );
 
   return (
-    <div className="bg-field-dark/30 border-b border-field-line/20 px-4 py-3">
-      <div className="max-w-7xl mx-auto space-y-3">
-        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-          <div className="relative flex-1">
+    <div className="bg-field-dark/30 border-b border-field-line/20 px-4 py-2">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 min-w-0">
             <label htmlFor="lead-search-query" className="sr-only">
               Search leads
             </label>
@@ -158,16 +182,16 @@ export function LeadSearchBar({
               type="search"
               value={filters.query}
               onChange={(e) => update("query", e.target.value)}
-              placeholder="Search name, phone, email, address, source…"
-              className="w-full min-h-[48px] rounded-lg border border-field-line/30 bg-field-turf/10 pl-10 pr-3 py-2 text-sm text-field-cream placeholder:text-field-cream/35 focus:outline-none focus:ring-2 focus:ring-field-gold/40"
+              placeholder="Search leads…"
+              className="w-full h-9 rounded-md border border-field-line/30 bg-field-turf/10 pl-8 pr-3 text-xs text-field-cream placeholder:text-field-cream/35 focus:outline-none focus:ring-2 focus:ring-field-gold/40"
             />
             <span
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-field-cream/35"
+              className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-field-cream/35"
               aria-hidden
             >
               <svg
-                width="18"
-                height="18"
+                width="14"
+                height="14"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -184,35 +208,52 @@ export function LeadSearchBar({
           <button
             type="button"
             onClick={() => setFiltersOpen((open) => !open)}
-            className="sm:hidden min-h-[48px] rounded-lg border border-field-line/30 bg-field-turf/10 px-4 text-sm font-medium text-field-cream/80 hover:border-field-gold/40 transition"
             aria-expanded={filtersOpen}
+            aria-label={active ? "Filters active — toggle panel" : "Toggle filters"}
+            className={`relative shrink-0 h-9 w-9 flex items-center justify-center rounded-md border transition ${
+              filtersOpen || active
+                ? "border-field-gold/50 bg-field-gold/10 text-field-gold"
+                : "border-field-line/30 bg-field-turf/10 text-field-cream/60 hover:border-field-line/40 hover:text-field-cream/80"
+            }`}
           >
-            Filters{active ? " · On" : ""}
+            <FilterIcon />
+            {active && !filtersOpen && (
+              <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-field-gold" />
+            )}
           </button>
 
           {active && (
             <button
               type="button"
               onClick={clearFilters}
-              className="min-h-[48px] rounded-lg border border-field-line/25 px-4 text-sm text-field-cream/60 hover:text-field-cream hover:border-field-line/40 transition shrink-0"
+              className="shrink-0 h-9 px-2.5 rounded-md text-xs text-field-cream/50 hover:text-field-cream transition"
             >
               Clear
             </button>
           )}
-        </div>
 
-        <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {filterFields}
+          <span className="hidden sm:inline text-[10px] text-field-cream/40 tabular-nums shrink-0">
+            {countLabel}
+          </span>
         </div>
 
         {filtersOpen && (
-          <div className="sm:hidden grid grid-cols-1 gap-3 pb-1">{filterFields}</div>
+          <div className="border-t border-field-line/15 mt-2">
+            {filterFields}
+            {active && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="sm:hidden mt-2 text-xs text-field-cream/50 hover:text-field-cream transition"
+              >
+                Clear all filters
+              </button>
+            )}
+          </div>
         )}
 
-        <p className="text-xs text-field-cream/45">
-          {filteredCount === total
-            ? `${total} lead${total === 1 ? "" : "s"} on the field`
-            : `${filteredCount} of ${total} lead${total === 1 ? "" : "s"}`}
+        <p className="sm:hidden text-[10px] text-field-cream/40 mt-1 tabular-nums">
+          {countLabel}
         </p>
       </div>
     </div>
