@@ -12,10 +12,11 @@ import {
   parseIntakeChecklist,
   type IntakeChecklistData,
 } from "@/lib/leads/intake-checklist";
-import type { LeadWithOwner } from "@/lib/leads/types";
+import type { LeadWithOwner, NoteWithAuthor } from "@/lib/leads/types";
 
 interface LeadIntakeChecklistProps {
   lead: LeadWithOwner;
+  notes?: NoteWithAuthor[];
   canEdit: boolean;
   variant: "intake" | "site_visit";
   onUpdated: () => void;
@@ -24,6 +25,7 @@ interface LeadIntakeChecklistProps {
 
 export function LeadIntakeChecklist({
   lead,
+  notes = [],
   canEdit,
   variant,
   onUpdated,
@@ -52,9 +54,15 @@ export function LeadIntakeChecklist({
     const items = getIntakeChecklistStatus(
       lead,
       checklist,
-      lead.appointments
+      lead.appointments,
+      notes
     );
-    const progress = getIntakeProgress(lead, checklist, lead.appointments);
+    const progress = getIntakeProgress(
+      lead,
+      checklist,
+      lead.appointments,
+      notes
+    );
 
     return (
       <section className="rounded-xl border border-field-gold/25 bg-field-gold/5 p-4">

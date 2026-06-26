@@ -33,6 +33,12 @@ export function serializeRoofTypes(types: RoofTypeValue[]): string | null {
   return unique.length > 0 ? unique.join(",") : null;
 }
 
+/** True when the field has a dropdown selection or legacy free-text value. */
+export function hasRoofTypeValue(stored: string | null | undefined): boolean {
+  if (!stored?.trim()) return false;
+  return parseRoofTypes(stored).length > 0 || Boolean(stored.trim());
+}
+
 export function formatRoofTypes(stored: string | null | undefined): string | null {
   const types = parseRoofTypes(stored);
   if (types.length === 0) {

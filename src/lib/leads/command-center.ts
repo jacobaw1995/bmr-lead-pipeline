@@ -17,6 +17,8 @@ import { formatLeadDisplayName } from "@/lib/leads/profile";
 import { getScopeStatusLabel } from "@/lib/leads/scope";
 import type { Lead, LeadAppointment } from "@/types/database";
 import type { NoteWithAuthor } from "@/lib/leads/types";
+
+type IntakeNotes = NoteWithAuthor[];
 export type LeadFieldPatch = Partial<{
   firstName: string;
   lastName: string;
@@ -77,7 +79,8 @@ export interface VitalFieldDef {
 export function isCommandStageComplete(
   key: CommandStageKey,
   lead: Lead,
-  appointments?: LeadAppointment[]
+  appointments?: LeadAppointment[],
+  notes: IntakeNotes = []
 ): boolean {
   const checklist = parseIntakeChecklist(lead.intake_checklist);
 
@@ -85,7 +88,7 @@ export function isCommandStageComplete(
     case "new_lead":
       return (
         lead.stage !== "lead_captured" ||
-        isIntakeChecklistComplete(lead, checklist, appointments)
+        isIntakeChecklistComplete(lead, checklist, appointments, notes)
       );
     case "site_visit":
       return (
@@ -151,11 +154,12 @@ export function getCommandStageLabel(key: CommandStageKey): string {
 export function getRecommendedAction(
   view: CommandStageKey,
   lead: Lead,
-  appointments?: LeadAppointment[]
+  appointments?: LeadAppointment[],
+  notes: IntakeNotes = []
 ): string {
   const siteVisit = getSiteVisitAppointment(appointments);
   const checklist = parseIntakeChecklist(lead.intake_checklist);
-  const intake = getIntakeProgress(lead, checklist, appointments);
+  const intake = getIntakeProgress(lead, checklist, appointments, notes);
 
   switch (view) {
     case "new_lead":
@@ -226,10 +230,11 @@ export function canMarkStageComplete(
   view: CommandStageKey,
   lead: Lead,
   appointments?: LeadAppointment[],
-  canEdit?: boolean
+  canEdit?: boolean,
+  notes: IntakeNotes = []
 ): boolean {
   if (!canEdit || lead.status !== "active") return false;
-  if (isCommandStageComplete(view, lead, appointments)) return false;
+  if (isCommandStageComplete(view, lead, appointments, notes)) return false;
 
   const checklist = parseIntakeChecklist(lead.intake_checklist);
 
@@ -237,7 +242,7 @@ export function canMarkStageComplete(
     case "new_lead":
       return (
         lead.stage === "lead_captured" &&
-        isIntakeChecklistComplete(lead, checklist, appointments)
+        isIntakeChecklistComplete(lead, checklist, appointments, notes)
       );
     case "site_visit":
       return getSiteVisitAppointment(appointments)?.state === "scheduled";
@@ -521,17 +526,25 @@ export function getVitalFieldDefs(
         },
       ];
     case "closed":
+      if (lead.status === "active") {
+        return lead.value != null
+          ? [
+              {
+                key: "deal_value",
+                label: "Deal value",
+                type: "readonly",
+                value: formatCurrency(lead.value),
+              },
+            ]
+          : [];
+      }
       return [
         {
           key: "outcome",
           label: "Outcome",
           type: "readonly",
           value:
-            lead.status === "closed_won"
-              ? "Closed Won"
-              : lead.status === "closed_lost"
-                ? "Closed Lost"
-                : "Still active",
+            lead.status === "closed_won" ? "Closed Won" : "Closed Lost",
         },
         {
           key: "deal_value",

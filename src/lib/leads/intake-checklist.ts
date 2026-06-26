@@ -1,6 +1,6 @@
 import { formatServiceAddress } from "@/lib/leads/address";
 import { getSiteVisitAppointment } from "@/lib/leads/appointments";
-import { formatRoofTypes, parseRoofTypes } from "@/lib/leads/roof-types";
+import { formatRoofTypes, hasRoofTypeValue } from "@/lib/leads/roof-types";
 import type { Lead, LeadAppointment } from "@/types/database";
 import type { NoteWithAuthor } from "@/lib/leads/types";
 
@@ -90,7 +90,8 @@ export function getIntakeItemComplete(
   key: string,
   lead: Lead,
   checklist: IntakeChecklistData,
-  appointments?: LeadAppointment[]
+  appointments?: LeadAppointment[],
+  notes: NoteWithAuthor[] = []
 ): boolean {
   const siteVisit = getSiteVisitAppointment(appointments);
 
@@ -106,11 +107,11 @@ export function getIntakeItemComplete(
     case "customer_type":
       return Boolean(lead.homeowner_or_contractor?.trim());
     case "existing_roof":
-      return parseRoofTypes(lead.existing_roof_type).length > 0;
+      return hasRoofTypeValue(lead.existing_roof_type);
     case "requested_roof":
-      return parseRoofTypes(lead.roof_type_requested).length > 0;
+      return hasRoofTypeValue(lead.roof_type_requested);
     case "main_issue":
-      return Boolean(checklist.main_issue?.trim());
+      return Boolean(getMainIssue(checklist, notes));
     case "project_type":
       return Boolean(lead.remodel_or_new_construction?.trim());
     case "site_visit_scheduled":
@@ -123,22 +124,35 @@ export function getIntakeItemComplete(
 export function getIntakeChecklistStatus(
   lead: Lead,
   checklist: IntakeChecklistData,
-  appointments?: LeadAppointment[]
+  appointments?: LeadAppointment[],
+  notes: NoteWithAuthor[] = []
 ): ChecklistItemStatus[] {
   return INTAKE_CALL_ITEMS.map((item) => ({
     key: item.key,
     label: item.label,
     hint: item.hint,
-    complete: getIntakeItemComplete(item.key, lead, checklist, appointments),
+    complete: getIntakeItemComplete(
+      item.key,
+      lead,
+      checklist,
+      appointments,
+      notes
+    ),
   }));
 }
 
 export function getIntakeProgress(
   lead: Lead,
   checklist: IntakeChecklistData,
-  appointments?: LeadAppointment[]
+  appointments?: LeadAppointment[],
+  notes: NoteWithAuthor[] = []
 ): { done: number; total: number; percent: number } {
-  const items = getIntakeChecklistStatus(lead, checklist, appointments);
+  const items = getIntakeChecklistStatus(
+    lead,
+    checklist,
+    appointments,
+    notes
+  );
   const done = items.filter((i) => i.complete).length;
   const total = items.length;
   return {
@@ -151,9 +165,15 @@ export function getIntakeProgress(
 export function isIntakeChecklistComplete(
   lead: Lead,
   checklist: IntakeChecklistData,
-  appointments?: LeadAppointment[]
+  appointments?: LeadAppointment[],
+  notes: NoteWithAuthor[] = []
 ): boolean {
-  const { done, total } = getIntakeProgress(lead, checklist, appointments);
+  const { done, total } = getIntakeProgress(
+    lead,
+    checklist,
+    appointments,
+    notes
+  );
   return done === total;
 }
 

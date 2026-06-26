@@ -74,13 +74,14 @@ export function LeadCommandCenter({
   }, [lead.id]);
 
   const progress = getCommandProgress(lead, appointments);
-  const recommended = getRecommendedAction(view, lead, appointments);
+  const recommended = getRecommendedAction(view, lead, appointments, notes);
   const markLabel = getMarkCompleteLabel(view);
   const showMarkComplete = canMarkStageComplete(
     view,
     lead,
     appointments,
-    canEdit
+    canEdit,
+    notes
   );
   const showCloseDeal =
     canEdit &&
@@ -91,7 +92,7 @@ export function LeadCommandCenter({
   const isUnclaimed = lead.status === "active" && !lead.owner_id;
 
   const completedPills = COMMAND_STAGES.map((s) =>
-    isCommandStageComplete(s.key, lead, appointments)
+    isCommandStageComplete(s.key, lead, appointments, notes)
   );
 
   async function handleMarkComplete() {
@@ -137,7 +138,10 @@ export function LeadCommandCenter({
     setLoading(false);
     const nextIndex = COMMAND_STAGES.findIndex((s) => s.key === view) + 1;
     if (nextIndex < COMMAND_STAGES.length) {
-      setView(COMMAND_STAGES[nextIndex].key);
+      const next = COMMAND_STAGES[nextIndex];
+      if (next.key !== "closed" || lead.status !== "active") {
+        setView(next.key);
+      }
     }
     onRefresh();
     router.refresh();
@@ -285,6 +289,7 @@ export function LeadCommandCenter({
           {view === "new_lead" && (
             <LeadIntakeChecklist
               lead={lead}
+              notes={notes}
               canEdit={canEdit}
               variant="intake"
               onUpdated={onRefresh}
