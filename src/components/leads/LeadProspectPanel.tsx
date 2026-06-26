@@ -6,7 +6,7 @@ import {
   formatBillingAddress,
   formatServiceAddress,
 } from "@/lib/leads/address";
-import { STAGE_LABELS, getSourceDisplayLabel } from "@/lib/leads/constants";
+import { getSourceDisplayLabel } from "@/lib/leads/constants";
 import { formatCurrency, formatTimestamp } from "@/lib/leads/format";
 import {
   formatLeadDisplayName,
@@ -18,6 +18,7 @@ import { DeleteLeadButton } from "./DeleteLeadButton";
 import { LeadActivityTrail } from "./LeadActivityTrail";
 import { LeadEditDetails } from "./LeadEditDetails";
 import { LeadOwnerReassign } from "./LeadOwnerReassign";
+import { LeadStagePicker } from "./LeadStagePicker";
 
 interface LeadProspectPanelProps {
   lead: LeadWithOwner;
@@ -187,15 +188,16 @@ function ProspectFields({
         </div>
       </div>
 
-      {isActive ? (
-        <p className="text-xs text-field-cream/45">
-          Stage: {STAGE_LABELS[lead.stage]}
-        </p>
-      ) : (
+      <LeadStagePicker
+        leadId={lead.id}
+        currentStage={lead.stage}
+        canEdit={canEdit}
+        isActive={isActive}
+        onUpdated={onUpdated}
+      />
+
+      {!isActive && (
         <>
-          <p className="text-xs text-field-cream/45">
-            Was {STAGE_LABELS[lead.stage]}
-          </p>
           {lead.value != null && (
             <p className="text-sm font-semibold text-field-gold">
               {formatCurrency(lead.value)}
