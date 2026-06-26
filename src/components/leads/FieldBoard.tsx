@@ -14,6 +14,12 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import type { LeadWithOwner } from "@/lib/leads/types";
+import {
+  DEFAULT_LEAD_SEARCH_FILTERS,
+  filterLeads,
+  hasActiveFilters,
+  type LeadSearchFilters,
+} from "@/lib/leads/search";
 import { groupLeadsByStage } from "@/lib/leads/utils";
 import { moveLeadStage } from "@/lib/leads/actions";
 import {
@@ -22,9 +28,11 @@ import {
   parseStageDroppableId,
 } from "@/lib/leads/constants";
 import type { LeadStage, UserRole } from "@/types/database";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { AddLeadModal } from "./AddLeadModal";
 import { LeadCard } from "./LeadCard";
 import { LeadDetailPanel } from "./LeadDetailPanel";
+import { LeadSearchBar } from "./LeadSearchBar";
 import { PipelineColumn } from "./PipelineColumn";
 
 interface FieldBoardProps {
@@ -59,8 +67,23 @@ export function FieldBoard({
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [searchFilters, setSearchFilters] = useState<LeadSearchFilters>(
+    DEFAULT_LEAD_SEARCH_FILTERS
+  );
 
-  const grouped = useMemo(() => groupLeadsByStage(leads), [leads]);
+  const isManager = currentUserRole === "manager";
+
+  const filteredLeads = useMemo(
+    () => filterLeads(leads, searchFilters, currentUserId),
+    [leads, searchFilters, currentUserId]
+  );
+
+  const filtersActive = hasActiveFilters(searchFilters);
+
+  const grouped = useMemo(
+    () => groupLeadsByStage(filteredLeads),
+    [filteredLeads]
+  );
   const capturedLeads = grouped.lead_captured;
   const unclaimedCaptured = useMemo(
     () => capturedLeads.filter((l) => !l.owner_id),
@@ -175,6 +198,14 @@ export function FieldBoard({
           </div>
         )}
 
+        <LeadSearchBar
+          leads={leads}
+          filters={searchFilters}
+          onFiltersChange={setSearchFilters}
+          filteredCount={filteredLeads.length}
+          isManager={isManager}
+        />
+
         {/* Lead Box */}
         <div className="bg-field-dark/40 border-b border-field-line/30 px-4 py-4">
           <div className="max-w-7xl mx-auto">
@@ -206,27 +237,46 @@ export function FieldBoard({
         {/* The Field */}
         <div className="flex-1 field-pattern px-4 py-4 sm:py-6">
           <div className="max-w-7xl mx-auto">
-            <p className="text-[10px] uppercase tracking-wider text-field-cream/35 mb-2 lg:hidden">
-              Swipe field →
-            </p>
-            <div className="overflow-x-auto pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:overflow-visible scrollbar-hide">
-              <div className="flex lg:grid lg:grid-cols-5 gap-3 w-max lg:w-auto">
-                {PIPELINE_STAGES.map((stage, index) => (
-                  <PipelineColumn
-                    key={stage.key}
-                    stage={stage.key}
-                    label={stage.label}
-                    index={index}
-                    leads={grouped[stage.key as LeadStage]}
-                    currentUserId={currentUserId}
-                    currentUserRole={currentUserRole}
-                    onBlocked={showBlocked}
-                    onOpenDetail={handleOpenDetail}
-                    activeDragId={activeDragId}
-                  />
-                ))}
-              </div>
-            </div>
+            {filteredLeads.length === 0 && filtersActive ? (
+              <EmptyState
+                icon="🔍"
+                title="No leads match your filters"
+                description="Try a different search term or clear filters to see the full pipeline."
+                action={
+                  <button
+                    type="button"
+                    onClick={() => setSearchFilters(DEFAULT_LEAD_SEARCH_FILTERS)}
+                    className="rounded-lg bg-field-gold px-4 py-2 text-sm font-semibold text-field-dark hover:bg-field-gold/90 transition"
+                  >
+                    Clear filters
+                  </button>
+                }
+              />
+            ) : (
+              <>
+                <p className="text-[10px] uppercase tracking-wider text-field-cream/35 mb-2 lg:hidden">
+                  Swipe field →
+                </p>
+                <div className="overflow-x-auto pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:overflow-visible scrollbar-hide">
+                  <div className="flex lg:grid lg:grid-cols-5 gap-3 w-max lg:w-auto">
+                    {PIPELINE_STAGES.map((stage, index) => (
+                      <PipelineColumn
+                        key={stage.key}
+                        stage={stage.key}
+                        label={stage.label}
+                        index={index}
+                        leads={grouped[stage.key as LeadStage]}
+                        currentUserId={currentUserId}
+                        currentUserRole={currentUserRole}
+                        onBlocked={showBlocked}
+                        onOpenDetail={handleOpenDetail}
+                        activeDragId={activeDragId}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
