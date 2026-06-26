@@ -237,7 +237,7 @@ export function LeadProspectPanel({
   accordion = false,
 }: LeadProspectPanelProps) {
   const [prospectOpen, setProspectOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   if (accordion) {
     return (
