@@ -9,6 +9,10 @@ import type { LeadHistory, LeadWithOwner } from "@/lib/leads/types";
 import type { UserRole } from "@/types/database";
 import { CloseLeadSection } from "./CloseLeadSection";
 import { LeadCommandCenter } from "./LeadCommandCenter";
+import {
+  LeadPanelDraftProvider,
+  useLeadPanelDraft,
+} from "./LeadPanelDraftContext";
 import { LeadProspectPanel } from "./LeadProspectPanel";
 import { LeadToast } from "./LeadToast";
 
@@ -20,14 +24,19 @@ interface LeadDetailPanelProps {
   onLeadClosed?: () => void;
 }
 
-export function LeadDetailPanel({
+function LeadDetailPanelContent({
   lead,
   currentUserId,
   currentUserRole,
-  onClose,
   onLeadClosed,
-}: LeadDetailPanelProps) {
+}: {
+  lead: LeadWithOwner;
+  currentUserId: string;
+  currentUserRole: UserRole;
+  onLeadClosed?: () => void;
+}) {
   const router = useRouter();
+  const { requestClose } = useLeadPanelDraft();
   const [history, setHistory] = useState<LeadHistory | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,25 +60,17 @@ export function LeadDetailPanel({
   }, []);
 
   useEffect(() => {
-    if (!lead) {
-      setHistory(null);
-      return;
-    }
-
     loadHistory(lead.id);
-  }, [lead, loadHistory]);
+  }, [lead.id, loadHistory]);
 
   useEffect(() => {
-    if (!lead) return;
-
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        if (closeDealOpen) {
-          setCloseDealOpen(false);
-        } else {
-          onClose();
-        }
+      if (e.key !== "Escape") return;
+      if (closeDealOpen) {
+        setCloseDealOpen(false);
+        return;
       }
+      void requestClose();
     }
 
     document.addEventListener("keydown", onKeyDown);
@@ -79,9 +80,7 @@ export function LeadDetailPanel({
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = "";
     };
-  }, [lead, onClose, closeDealOpen]);
-
-  if (!lead) return null;
+  }, [requestClose, closeDealOpen]);
 
   const displayName = formatLeadDisplayName(lead);
   const canEdit = canEditLead(lead, currentUserId, currentUserRole);
@@ -89,27 +88,27 @@ export function LeadDetailPanel({
 
   function handleClosed() {
     setCloseDealOpen(false);
-    onClose();
-    onLeadClosed?.();
+    void requestClose().then((closed) => {
+      if (closed) onLeadClosed?.();
+    });
     router.refresh();
   }
 
   function handleRefresh() {
-    loadHistory(lead!.id);
+    loadHistory(lead.id);
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-stretch justify-center">
-      <button
-        type="button"
-        aria-label="Close panel"
-        className="absolute inset-0 bg-field-dark/35 backdrop-blur-[2px]"
-        onClick={onClose}
+      <div
+        aria-hidden
+        className="absolute inset-0 bg-field-dark/35 backdrop-blur-[2px] pointer-events-none"
       />
 
-      <div className="relative flex flex-col sm:flex-row w-full max-w-6xl h-full sm:h-[min(100%,900px)] sm:my-auto mx-auto bg-field-dark sm:rounded-2xl sm:border border-field-line/20 shadow-2xl overflow-hidden safe-area-bottom">
+      <div className="relative flex flex-col sm:flex-row w-full max-w-6xl h-full sm:h-[min(100%,900px)] sm:my-auto mx-auto bg-field-dark sm:rounded-2xl sm:border border-field-line/20 shadow-2xl overflow-hidden safe-area-bottom pointer-events-auto">
         <button
-          onClick={onClose}
+          type="button"
+          onClick={() => void requestClose()}
           className="absolute top-4 right-4 z-10 hidden sm:flex shrink-0 w-9 h-9 rounded-lg border border-field-line/20 text-field-cream/50 hover:text-field-cream hover:bg-field-turf/20 transition items-center justify-center"
           aria-label={`Close ${displayName}`}
         >
@@ -124,13 +123,14 @@ export function LeadDetailPanel({
               loading={loading}
               canEdit={canEdit}
               isManager={isManager}
-            onUpdated={handleRefresh}
-            onDeleted={onClose}
-            accordion
-          />
+              onUpdated={handleRefresh}
+              onDeleted={() => void requestClose()}
+              accordion
+            />
           </div>
           <button
-            onClick={onClose}
+            type="button"
+            onClick={() => void requestClose()}
             className="shrink-0 w-12 min-h-[48px] flex items-center justify-center border-l border-field-line/15 text-field-cream/50 hover:text-field-cream hover:bg-field-turf/20 transition"
             aria-label="Close"
           >
@@ -162,7 +162,7 @@ export function LeadDetailPanel({
             canEdit={canEdit}
             isManager={isManager}
             onUpdated={handleRefresh}
-            onDeleted={onClose}
+            onDeleted={() => void requestClose()}
           />
         </div>
       </div>
@@ -170,7 +170,7 @@ export function LeadDetailPanel({
       <LeadToast message={toast} onDismiss={() => setToast(null)} />
 
       {closeDealOpen && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 pointer-events-auto">
           <button
             type="button"
             aria-label="Close"
@@ -184,5 +184,26 @@ export function LeadDetailPanel({
         </div>
       )}
     </div>
+  );
+}
+
+export function LeadDetailPanel({
+  lead,
+  currentUserId,
+  currentUserRole,
+  onClose,
+  onLeadClosed,
+}: LeadDetailPanelProps) {
+  if (!lead) return null;
+
+  return (
+    <LeadPanelDraftProvider onClose={onClose}>
+      <LeadDetailPanelContent
+        lead={lead}
+        currentUserId={currentUserId}
+        currentUserRole={currentUserRole}
+        onLeadClosed={onLeadClosed}
+      />
+    </LeadPanelDraftProvider>
   );
 }

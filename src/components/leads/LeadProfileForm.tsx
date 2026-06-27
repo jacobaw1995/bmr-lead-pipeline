@@ -39,9 +39,6 @@ export function LeadProfileForm({
   showStage = false,
   compact = false,
 }: LeadProfileFormProps) {
-  const [billingSameAsService, setBillingSameAsService] = useState(() =>
-    addressFieldsEqual(value.billing, value.service)
-  );
   const [serviceSameAsBilling, setServiceSameAsBilling] = useState(() =>
     addressFieldsEqual(value.billing, value.service)
   );
@@ -60,22 +57,8 @@ export function LeadProfileForm({
   }
 
   function patchService(partial: Partial<AddressFields>) {
-    const nextService = { ...value.service, ...partial };
-    const next: LeadProfileInput = { ...value, service: nextService };
-    if (billingSameAsService) {
-      next.billing = copyAddressFields(nextService);
-    }
-    onChange(next);
-  }
-
-  function handleBillingSameAsService(checked: boolean) {
-    setBillingSameAsService(checked);
-    if (checked) {
-      onChange({
-        ...value,
-        billing: copyAddressFields(value.service),
-      });
-    }
+    if (serviceSameAsBilling) return;
+    onChange({ ...value, service: { ...value.service, ...partial } });
   }
 
   function handleServiceSameAsBilling(checked: boolean) {
@@ -165,25 +148,18 @@ export function LeadProfileForm({
             Billing address
           </p>
         )}
-        <AddressSameToggle
-          checked={billingSameAsService}
-          onChange={handleBillingSameAsService}
-          label="Same as service address"
-        />
         <Field label="Street">
           <input
             type="text"
             value={value.billing?.streetAddress ?? ""}
             onChange={(e) => patchBilling({ streetAddress: e.target.value })}
-            disabled={billingSameAsService}
-            className={`${inputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
+            className={inputClass}
           />
         </Field>
         <AddressCityStateZip
           city={value.billing?.city ?? ""}
           state={value.billing?.state ?? ""}
           zip={value.billing?.zip ?? ""}
-          disabled={billingSameAsService}
           onCity={(v) => patchBilling({ city: v })}
           onState={(v) => patchBilling({ state: v })}
           onZip={(v) => patchBilling({ zip: v })}

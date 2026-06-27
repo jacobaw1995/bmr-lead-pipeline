@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePendingFieldSave } from "./usePendingFieldSave";
 import { useRouter } from "next/navigation";
 import { updateIntakeChecklist } from "@/lib/leads/actions";
 import {
@@ -280,6 +281,10 @@ function ScopeTextInput({
   useEffect(() => {
     setDraft(value);
   }, [value]);
+
+  usePendingFieldSave(draft, value, (next) => onCommit(next ?? ""), {
+    debounceMs: 700,
+  });
 
   return (
     <input

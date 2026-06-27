@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateLeadDetails } from "@/lib/leads/actions";
 import { leadToProfileInput } from "@/lib/leads/profile";
 import type { LeadProfileInput } from "@/lib/leads/profile";
 import { sourceToPickerValues } from "@/lib/leads/sources";
 import type { LeadWithOwner } from "@/lib/leads/types";
+import { useOptionalLeadPanelDraft } from "./LeadPanelDraftContext";
 import { LeadProfileForm } from "./LeadProfileForm";
 
 interface LeadEditDetailsProps {
@@ -26,6 +27,44 @@ export function LeadEditDetails({ lead, onUpdated }: LeadEditDetailsProps) {
   const [referralWho, setReferralWho] = useState(lead.referral_name ?? "");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const panelDraft = useOptionalLeadPanelDraft();
+
+  const baseline = useMemo(
+    () => ({
+      profile: leadToProfileInput(lead, source),
+      sourcePicked: source.picked,
+      customSource: source.customSource,
+      referralWho: lead.referral_name ?? "",
+    }),
+    [lead, source]
+  );
+
+  const isDirty = useMemo(() => {
+    if (!open) return false;
+    return (
+      JSON.stringify({
+        profile,
+        sourcePicked,
+        customSource,
+        referralWho,
+      }) !== JSON.stringify(baseline)
+    );
+  }, [
+    open,
+    profile,
+    sourcePicked,
+    customSource,
+    referralWho,
+    baseline,
+  ]);
+
+  useEffect(() => {
+    if (!open || !panelDraft) return;
+    return panelDraft.registerCloseGuard(() => {
+      if (!isDirty) return true;
+      return window.confirm("Discard unsaved lead detail edits?");
+    });
+  }, [open, isDirty, panelDraft]);
 
   function resetForm() {
     const nextSource = sourceToPickerValues(lead.source);

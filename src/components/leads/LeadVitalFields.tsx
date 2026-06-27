@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { patchLeadFields, updateIntakeChecklist } from "@/lib/leads/actions";
 import { mapsDirectionsUrl } from "@/lib/leads/address";
@@ -16,6 +16,7 @@ import {
 import type { LeadWithOwner, NoteWithAuthor } from "@/lib/leads/types";
 import { PhoneContactLink } from "./PhoneContactLink";
 import { RoofTypeMultiSelect } from "./RoofTypeMultiSelect";
+import { usePendingFieldSave } from "./usePendingFieldSave";
 
 const inputClass =
   "w-full rounded-lg border border-field-line/30 bg-field-dark/40 px-3 py-2 text-sm text-field-cream placeholder:text-field-cream/30 focus:outline-none focus:ring-2 focus:ring-field-gold/40 min-h-[48px]";
@@ -121,6 +122,15 @@ function VitalFieldCard({
       ? field.rawValue ?? field.value?.split(",")[0]?.trim() ?? ""
       : field.value ?? "";
   const [draft, setDraft] = useState(initial);
+  const savedValue = initial;
+
+  useEffect(() => {
+    setDraft(initial);
+  }, [initial, field.key]);
+
+  usePendingFieldSave(draft, savedValue, (value) => onSave(value), {
+    debounceMs: 700,
+  });
 
   if (field.type === "readonly" || !canEdit) {
     return (
@@ -204,7 +214,7 @@ function VitalFieldCard({
           placeholder={field.emptyHint}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={() => {
-            if (draft !== (field.value ?? "")) onSave(draft || null);
+            if (draft !== savedValue) onSave(draft || null);
           }}
           className={`${inputClass} resize-none`}
         />
@@ -219,7 +229,7 @@ function VitalFieldCard({
           placeholder={field.emptyHint}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={() => {
-            if (draft !== (field.value ?? "")) onSave(draft || null);
+            if (draft !== savedValue) onSave(draft || null);
           }}
           className={inputClass}
         />
@@ -234,7 +244,7 @@ function VitalFieldCard({
             placeholder="Street address"
             onChange={(e) => setDraft(e.target.value)}
             onBlur={() => {
-              if (draft !== (field.value ?? "")) onSave(draft || null);
+              if (draft !== savedValue) onSave(draft || null);
             }}
             className={inputClass}
           />
