@@ -13,6 +13,7 @@ import {
   LeadPanelDraftProvider,
   useLeadPanelDraft,
 } from "./LeadPanelDraftContext";
+import { LeadNotesSection } from "./LeadNotesSection";
 import { LeadProspectPanel } from "./LeadProspectPanel";
 import { LeadToast } from "./LeadToast";
 
@@ -105,7 +106,7 @@ function LeadDetailPanelContent({
         className="absolute inset-0 bg-field-dark/35 backdrop-blur-[2px] pointer-events-none"
       />
 
-      <div className="relative flex flex-col sm:flex-row w-full max-w-6xl h-full sm:h-[min(100%,900px)] sm:my-auto mx-auto bg-field-dark sm:rounded-2xl sm:border border-field-line/20 shadow-2xl overflow-hidden safe-area-bottom pointer-events-auto">
+      <div className="relative flex flex-col sm:flex-row w-full max-w-7xl h-full sm:h-[min(100%,900px)] sm:my-auto mx-auto bg-field-dark sm:rounded-2xl sm:border border-field-line/20 shadow-2xl overflow-hidden safe-area-bottom pointer-events-auto">
         <button
           type="button"
           onClick={() => void requestClose()}
@@ -137,6 +138,24 @@ function LeadDetailPanelContent({
             ✕
           </button>
         </div>
+
+        <aside className="hidden sm:flex flex-col w-72 lg:w-80 shrink-0 border-r border-field-line/20 min-h-0 h-full">
+          <LeadNotesSection
+            lead={lead}
+            notes={history?.notes ?? []}
+            canEdit={canEdit}
+            onUpdated={handleRefresh}
+            layout="column"
+          />
+        </aside>
+
+        <LeadNotesSection
+          lead={lead}
+          notes={history?.notes ?? []}
+          canEdit={canEdit}
+          onUpdated={handleRefresh}
+          layout="inline"
+        />
 
         <div className="flex-1 min-w-0 min-h-0 flex flex-col">
           {error && (

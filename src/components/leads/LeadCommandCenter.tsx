@@ -29,7 +29,6 @@ import { phoneSmsHref, phoneTelHref } from "@/lib/leads/phone";
 import type { LeadWithOwner, NoteWithAuthor } from "@/lib/leads/types";
 import { ClaimLeadButton } from "./ClaimLeadButton";
 import { LeadIntakeChecklist } from "./LeadIntakeChecklist";
-import { LeadNotesSection } from "./LeadNotesSection";
 import { LeadVitalFields } from "./LeadVitalFields";
 import { ScheduleAppointmentModal } from "./ScheduleAppointmentModal";
 
@@ -286,13 +285,6 @@ export function LeadCommandCenter({
               }}
             />
           )}
-
-          <LeadNotesSection
-            lead={lead}
-            notes={notes}
-            canEdit={canEdit}
-            onUpdated={onRefresh}
-          />
 
           {view === "new_lead" && (
             <LeadIntakeChecklist
