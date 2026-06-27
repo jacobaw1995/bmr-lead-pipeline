@@ -6,6 +6,8 @@ import type { NoteWithAuthor } from "@/lib/leads/types";
 
 export interface IntakeChecklistData {
   main_issue?: string;
+  /** Always-visible team notes — editable on every pipeline stage */
+  general_notes?: string;
   site_visit?: Record<string, string | number | boolean>;
 }
 
@@ -61,6 +63,8 @@ export function parseIntakeChecklist(
   const data = raw as IntakeChecklistData;
   return {
     main_issue: typeof data.main_issue === "string" ? data.main_issue : undefined,
+    general_notes:
+      typeof data.general_notes === "string" ? data.general_notes : undefined,
     site_visit:
       data.site_visit && typeof data.site_visit === "object"
         ? data.site_visit
