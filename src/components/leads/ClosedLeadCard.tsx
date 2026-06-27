@@ -33,6 +33,7 @@ export function ClosedLeadCard({
 
   const bgClass =
     variant === "won" ? "bg-field-dark/50" : "bg-field-sage/5";
+  const sourceLabel = getSourceDisplayLabel(lead.source, lead.referral_name);
 
   return (
     <button
@@ -42,13 +43,19 @@ export function ClosedLeadCard({
         !isOwn ? "opacity-85" : ""
       }`}
     >
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="font-semibold text-field-cream">
+      <div className="min-w-0">
+        <h3
+          className="font-semibold text-field-cream truncate"
+          title={formatLeadDisplayName(lead)}
+        >
           {formatLeadDisplayName(lead)}
         </h3>
-        <span className="shrink-0 text-[10px] uppercase tracking-wide text-field-cream/40">
-          {getSourceDisplayLabel(lead.source, lead.referral_name)}
-        </span>
+        <p
+          className="mt-1 truncate text-[10px] text-field-cream/40"
+          title={sourceLabel}
+        >
+          {sourceLabel}
+        </p>
       </div>
 
       {variant === "won" && lead.value != null && (

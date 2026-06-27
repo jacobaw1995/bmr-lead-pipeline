@@ -43,6 +43,7 @@ export function LeadCard({
     canEdit &&
     (VALUE_STAGES.includes(lead.stage) || lead.value != null);
   const displayName = formatLeadDisplayName(lead);
+  const sourceLabel = getSourceDisplayLabel(lead.source, lead.referral_name);
   const primaryPhone = getPrimaryPhone(lead);
   const clickable = Boolean(onOpenDetail && !isOverlay);
 
@@ -65,7 +66,7 @@ export function LeadCard({
             }
           : undefined
       }
-      className={`rounded-lg border bg-field-dark/50 p-3 transition ${
+      className={`min-w-0 overflow-hidden rounded-lg border bg-field-dark/50 p-3 transition ${
         clickable
           ? "cursor-pointer hover:border-field-gold/40 hover:bg-field-turf/15 active:scale-[0.99]"
           : ""
@@ -81,17 +82,21 @@ export function LeadCard({
                 : "border-field-line/25 opacity-80"
       }`}
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="min-w-0">
         <h3
-          className={`font-semibold text-field-cream text-sm leading-tight ${
+          className={`font-semibold text-field-cream text-sm leading-tight truncate ${
             clickable ? "hover:text-field-gold transition" : ""
           }`}
+          title={displayName}
         >
           {displayName}
         </h3>
-        <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide bg-field-turf/40 text-field-cream/60">
-          {getSourceDisplayLabel(lead.source, lead.referral_name)}
-        </span>
+        <p
+          className="mt-1 truncate text-[10px] font-medium text-field-cream/55"
+          title={sourceLabel}
+        >
+          {sourceLabel}
+        </p>
       </div>
 
       <div className="mt-2 space-y-1 text-xs text-field-cream/50">

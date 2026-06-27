@@ -58,7 +58,7 @@ export function PipelineColumn({
 
       <div
         ref={setNodeRef}
-        className={`flex-1 p-3 flex flex-col gap-2 min-h-[200px] transition-colors ${
+        className={`flex-1 p-3 flex flex-col gap-2 min-h-[200px] min-w-0 overflow-hidden transition-colors ${
           isOver
             ? "bg-field-gold/10 ring-2 ring-inset ring-field-gold/40"
             : ""
