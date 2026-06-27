@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchLeadHistory } from "@/lib/leads/actions";
+import { deriveActiveCommandStage, type CommandStageKey } from "@/lib/leads/command-center";
 import { formatLeadDisplayName } from "@/lib/leads/profile";
 import { canEditLead } from "@/lib/leads/permissions";
 import type { LeadHistory, LeadWithOwner } from "@/lib/leads/types";
@@ -15,6 +16,7 @@ import {
 } from "./LeadPanelDraftContext";
 import { LeadNotesSection } from "./LeadNotesSection";
 import { LeadProspectPanel } from "./LeadProspectPanel";
+import { LeadQuickActions } from "./LeadQuickActions";
 import { LeadToast } from "./LeadToast";
 
 export type LeadDetailPanelDraftApi = {
@@ -64,6 +66,13 @@ function LeadDetailPanelContent({
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [closeDealOpen, setCloseDealOpen] = useState(false);
+  const [view, setView] = useState<CommandStageKey>(() =>
+    deriveActiveCommandStage(lead, lead.appointments ?? [])
+  );
+
+  useEffect(() => {
+    setView(deriveActiveCommandStage(lead, lead.appointments ?? []));
+  }, [lead.id, lead.appointments]);
 
   const loadHistory = useCallback(async (leadId: string) => {
     setLoading(true);
@@ -120,6 +129,34 @@ function LeadDetailPanelContent({
     loadHistory(lead.id);
   }
 
+  const quickActions = (
+    <LeadQuickActions
+      lead={lead}
+      canEdit={canEdit}
+      notes={history?.notes ?? []}
+      view={view}
+      onViewChange={setView}
+      onRefresh={handleRefresh}
+      onToast={setToast}
+      onOpenCloseDeal={() => setCloseDealOpen(true)}
+      compact={false}
+    />
+  );
+
+  const mobileQuickActions = (
+    <LeadQuickActions
+      lead={lead}
+      canEdit={canEdit}
+      notes={history?.notes ?? []}
+      view={view}
+      onViewChange={setView}
+      onRefresh={handleRefresh}
+      onToast={setToast}
+      onOpenCloseDeal={() => setCloseDealOpen(true)}
+      compact
+    />
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-stretch justify-center">
       <div
@@ -148,6 +185,7 @@ function LeadDetailPanelContent({
               onUpdated={handleRefresh}
               onDeleted={() => void requestClose()}
               accordion
+              quickActions={mobileQuickActions}
             />
           </div>
           <button
@@ -160,13 +198,16 @@ function LeadDetailPanelContent({
           </button>
         </div>
 
-        <aside className="hidden sm:flex flex-col w-72 lg:w-80 shrink-0 border-r border-field-line/20 min-h-0 h-full">
-          <LeadNotesSection
+        <aside className="hidden sm:flex flex-col shrink-0 border-r border-field-line/20 min-h-0 h-full">
+          <LeadProspectPanel
             lead={lead}
-            notes={history?.notes ?? []}
+            history={history}
+            loading={loading}
             canEdit={canEdit}
+            isManager={isManager}
             onUpdated={handleRefresh}
-            layout="column"
+            onDeleted={() => void requestClose()}
+            quickActions={quickActions}
           />
         </aside>
 
@@ -188,23 +229,22 @@ function LeadDetailPanelContent({
             lead={lead}
             canEdit={canEdit}
             notes={history?.notes ?? []}
+            view={view}
+            onViewChange={setView}
             onRefresh={handleRefresh}
             onToast={setToast}
-            onOpenCloseDeal={() => setCloseDealOpen(true)}
           />
         </div>
 
-        <div className="hidden sm:flex min-h-0">
-          <LeadProspectPanel
+        <aside className="hidden sm:flex flex-col w-72 lg:w-80 shrink-0 border-l border-field-line/20 min-h-0 h-full">
+          <LeadNotesSection
             lead={lead}
-            history={history}
-            loading={loading}
+            notes={history?.notes ?? []}
             canEdit={canEdit}
-            isManager={isManager}
             onUpdated={handleRefresh}
-            onDeleted={() => void requestClose()}
+            layout="column"
           />
-        </div>
+        </aside>
       </div>
 
       <LeadToast message={toast} onDismiss={() => setToast(null)} />

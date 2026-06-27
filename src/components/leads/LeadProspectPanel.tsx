@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   formatBillingAddress,
@@ -30,6 +30,7 @@ interface LeadProspectPanelProps {
   onDeleted?: () => void;
   /** When true, render as collapsible accordion (mobile). */
   accordion?: boolean;
+  quickActions?: ReactNode;
 }
 
 function ProspectFields({
@@ -235,6 +236,7 @@ export function LeadProspectPanel({
   onUpdated,
   onDeleted,
   accordion = false,
+  quickActions,
 }: LeadProspectPanelProps) {
   const [prospectOpen, setProspectOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -242,6 +244,11 @@ export function LeadProspectPanel({
   if (accordion) {
     return (
       <div className="shrink-0">
+        {quickActions && (
+          <div className="px-4 py-3 border-b border-field-line/15">
+            {quickActions}
+          </div>
+        )}
         <button
           type="button"
           onClick={() => setProspectOpen((o) => !o)}
@@ -293,7 +300,12 @@ export function LeadProspectPanel({
   }
 
   return (
-    <div className="flex flex-col h-full border-l border-field-line/20 bg-field-dark/60 w-full sm:w-80 lg:w-96 shrink-0">
+    <div className="flex flex-col h-full bg-field-dark/60 w-full sm:w-72 lg:w-80 shrink-0 min-h-0">
+      {quickActions && (
+        <div className="shrink-0 px-4 py-4 border-b border-field-line/20">
+          {quickActions}
+        </div>
+      )}
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-5 space-y-6">
         <section>
           <h3 className="text-xs font-semibold uppercase tracking-wider text-field-gold mb-3">
