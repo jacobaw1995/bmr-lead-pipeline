@@ -1,5 +1,8 @@
 import { formatServiceAddress } from "@/lib/leads/address";
-import { getSiteVisitAppointment } from "@/lib/leads/appointments";
+import {
+  formatAppointmentDateTime,
+  getSiteVisitAppointment,
+} from "@/lib/leads/appointments";
 import { formatRoofTypes, hasRoofTypeValue } from "@/lib/leads/roof-types";
 import type { Lead, LeadAppointment } from "@/types/database";
 import type { NoteWithAuthor } from "@/lib/leads/types";
@@ -16,6 +19,7 @@ export interface ChecklistItemStatus {
   label: string;
   complete: boolean;
   hint?: string;
+  detail?: string | null;
 }
 
 export const INTAKE_CALL_ITEMS: { key: string; label: string; hint?: string }[] =
@@ -38,9 +42,17 @@ export const SITE_VISIT_SCOPE_ITEMS: {
   inputType: "number" | "text" | "boolean";
   unit?: string;
   hint?: string;
+  /** Minimum numeric value to count as gathered (default 0). */
+  minComplete?: number;
 }[] = [
-  { key: "roof_sqft", label: "Roof area", inputType: "number", unit: "sq ft" },
-  { key: "facets", label: "Roof facets", inputType: "number" },
+  {
+    key: "roof_sqft",
+    label: "Roof area",
+    inputType: "number",
+    unit: "sq ft",
+    minComplete: 1,
+  },
+  { key: "facets", label: "Roof facets", inputType: "number", minComplete: 1 },
   { key: "pitch_notes", label: "Pitch / slope notes", inputType: "text", hint: "e.g. 6/12 main, 4/12 porch" },
   { key: "gutters_lf", label: "Gutters", inputType: "number", unit: "linear ft" },
   { key: "fascia_lf", label: "Fascia", inputType: "number", unit: "linear ft" },
@@ -82,12 +94,58 @@ function hasContactName(lead: Lead): boolean {
 function hasValue(
   siteVisit: Record<string, string | number | boolean> | undefined,
   key: string,
-  inputType: "number" | "text" | "boolean"
+  inputType: "number" | "text" | "boolean",
+  minComplete = 0
 ): boolean {
   const v = siteVisit?.[key];
   if (inputType === "boolean") return v === true || v === false;
-  if (inputType === "number") return typeof v === "number" && v >= 0;
+  if (inputType === "number") {
+    if (typeof v !== "number" || Number.isNaN(v)) return false;
+    return minComplete > 0 ? v >= minComplete : v >= 0;
+  }
   return typeof v === "string" && v.trim().length > 0;
+}
+
+export function getIntakeItemDetail(
+  key: string,
+  lead: Lead,
+  checklist: IntakeChecklistData,
+  appointments?: LeadAppointment[],
+  notes: NoteWithAuthor[] = []
+): string | null {
+  const siteVisitAppt = getSiteVisitAppointment(appointments);
+
+  switch (key) {
+    case "contact_name": {
+      const full = [lead.first_name, lead.last_name].filter(Boolean).join(" ");
+      return full.trim() || lead.name?.trim() || lead.company_name?.trim() || null;
+    }
+    case "cell_phone":
+      return lead.cell_phone?.trim() || lead.phone?.trim() || null;
+    case "email":
+      return lead.email?.trim() || null;
+    case "service_address":
+      return formatServiceAddress(lead) || null;
+    case "customer_type":
+      return lead.homeowner_or_contractor?.trim() || null;
+    case "existing_roof":
+      return formatExistingRoofDisplay(lead);
+    case "requested_roof":
+      return formatRequestedRoofDisplay(lead);
+    case "main_issue":
+      return getMainIssue(checklist, notes);
+    case "project_type":
+      return lead.remodel_or_new_construction?.trim() || null;
+    case "site_visit_scheduled":
+      if (siteVisitAppt?.appointment?.scheduled_at) {
+        return formatAppointmentDateTime(siteVisitAppt.appointment.scheduled_at);
+      }
+      if (siteVisitAppt?.state === "completed") return "Site visit completed";
+      if (siteVisitAppt?.state === "scheduled") return "Site visit scheduled";
+      return null;
+    default:
+      return null;
+  }
 }
 
 export function getIntakeItemComplete(
@@ -131,18 +189,30 @@ export function getIntakeChecklistStatus(
   appointments?: LeadAppointment[],
   notes: NoteWithAuthor[] = []
 ): ChecklistItemStatus[] {
-  return INTAKE_CALL_ITEMS.map((item) => ({
-    key: item.key,
-    label: item.label,
-    hint: item.hint,
-    complete: getIntakeItemComplete(
+  return INTAKE_CALL_ITEMS.map((item) => {
+    const complete = getIntakeItemComplete(
       item.key,
       lead,
       checklist,
       appointments,
       notes
-    ),
-  }));
+    );
+    return {
+      key: item.key,
+      label: item.label,
+      hint: item.hint,
+      complete,
+      detail: complete
+        ? getIntakeItemDetail(
+            item.key,
+            lead,
+            checklist,
+            appointments,
+            notes
+          )
+        : null,
+    };
+  });
 }
 
 export function getIntakeProgress(
@@ -189,7 +259,12 @@ export function getSiteVisitScopeStatus(
     key: item.key,
     label: item.label,
     hint: item.hint,
-    complete: hasValue(site, item.key, item.inputType),
+    complete: hasValue(
+      site,
+      item.key,
+      item.inputType,
+      item.minComplete ?? 0
+    ),
   }));
 }
 

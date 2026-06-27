@@ -11,6 +11,7 @@ import {
   getSiteVisitScopeProgress,
   getSiteVisitScopeStatus,
   parseIntakeChecklist,
+  type ChecklistItemStatus,
   type IntakeChecklistData,
 } from "@/lib/leads/intake-checklist";
 import type { LeadWithOwner, NoteWithAuthor } from "@/lib/leads/types";
@@ -34,6 +35,7 @@ export function LeadIntakeChecklist({
 }: LeadIntakeChecklistProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [detailItem, setDetailItem] = useState<ChecklistItemStatus | null>(null);
   const checklist = parseIntakeChecklist(lead.intake_checklist);
 
   async function persist(next: IntakeChecklistData) {
@@ -87,45 +89,23 @@ export function LeadIntakeChecklist({
         </div>
         <ul className="space-y-2">
           {items.map((item) => (
-            <li
+            <IntakeChecklistRow
               key={item.key}
-              className={`flex items-start gap-3 rounded-lg px-3 py-2.5 min-h-[48px] ${
-                item.complete
-                  ? "bg-field-sage/10 border border-field-sage/25"
-                  : "bg-field-dark/30 border border-field-line/15"
-              }`}
-            >
-              <span
-                className={`mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs ${
-                  item.complete
-                    ? "bg-field-sage text-field-dark"
-                    : "border border-field-line/30 text-field-cream/30"
-                }`}
-                aria-hidden
-              >
-                {item.complete ? "✓" : ""}
-              </span>
-              <div className="min-w-0">
-                <p
-                  className={`text-sm ${
-                    item.complete ? "text-field-cream" : "text-field-cream/75"
-                  }`}
-                >
-                  {item.label}
-                </p>
-                {item.hint && (
-                  <p className="text-[10px] text-field-cream/40 mt-0.5">
-                    {item.hint}
-                  </p>
-                )}
-              </div>
-            </li>
+              item={item}
+              onShowDetail={setDetailItem}
+            />
           ))}
         </ul>
         {saving && (
           <p className="text-[10px] text-field-cream/40 mt-3 text-center">
             Saving…
           </p>
+        )}
+        {detailItem && (
+          <IntakeChecklistDetailModal
+            item={detailItem}
+            onClose={() => setDetailItem(null)}
+          />
         )}
       </section>
     );
@@ -233,6 +213,131 @@ export function LeadIntakeChecklist({
   );
 }
 
+function IntakeChecklistRow({
+  item,
+  onShowDetail,
+}: {
+  item: ChecklistItemStatus;
+  onShowDetail: (item: ChecklistItemStatus) => void;
+}) {
+  const canShowDetail = item.complete && Boolean(item.detail?.trim());
+
+  const content = (
+    <>
+      <span
+        className={`mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs ${
+          item.complete
+            ? "bg-field-sage text-field-dark"
+            : "border border-field-line/30 text-field-cream/30"
+        }`}
+        aria-hidden
+      >
+        {item.complete ? "✓" : ""}
+      </span>
+      <div className="min-w-0 flex-1 text-left">
+        <p
+          className={`text-sm ${
+            item.complete ? "text-field-cream" : "text-field-cream/75"
+          }`}
+        >
+          {item.label}
+        </p>
+        {item.hint && (
+          <p className="text-[10px] text-field-cream/40 mt-0.5">{item.hint}</p>
+        )}
+        {canShowDetail && (
+          <p className="text-[10px] text-field-gold/70 mt-1">
+            Tap to view details
+          </p>
+        )}
+      </div>
+    </>
+  );
+
+  if (!canShowDetail) {
+    return (
+      <li
+        className={`flex items-start gap-3 rounded-lg px-3 py-2.5 min-h-[48px] ${
+          item.complete
+            ? "bg-field-sage/10 border border-field-sage/25"
+            : "bg-field-dark/30 border border-field-line/15"
+        }`}
+      >
+        {content}
+      </li>
+    );
+  }
+
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => onShowDetail(item)}
+        title={item.detail ?? undefined}
+        className={`w-full flex items-start gap-3 rounded-lg px-3 py-2.5 min-h-[48px] text-left transition ${
+          item.complete
+            ? "bg-field-sage/10 border border-field-sage/25 hover:bg-field-sage/20 hover:border-field-sage/40 cursor-pointer"
+            : "bg-field-dark/30 border border-field-line/15"
+        }`}
+      >
+        {content}
+      </button>
+    </li>
+  );
+}
+
+function IntakeChecklistDetailModal({
+  item,
+  onClose,
+}: {
+  item: ChecklistItemStatus;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4">
+      <button
+        type="button"
+        aria-label="Close"
+        className="absolute inset-0 bg-field-dark/70"
+        onClick={onClose}
+      />
+      <div
+        role="dialog"
+        aria-labelledby="checklist-detail-title"
+        className="relative w-full max-w-md rounded-xl border border-field-sage/30 bg-field-dark p-5 shadow-2xl"
+      >
+        <h3
+          id="checklist-detail-title"
+          className="text-sm font-semibold uppercase tracking-wider text-field-gold mb-1"
+        >
+          {item.label}
+        </h3>
+        {item.hint && (
+          <p className="text-[10px] text-field-cream/45 mb-3">{item.hint}</p>
+        )}
+        <p className="text-sm text-field-cream whitespace-pre-wrap leading-relaxed">
+          {item.detail}
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-4 w-full min-h-[44px] rounded-lg bg-field-gold px-4 text-sm font-semibold text-field-dark hover:bg-field-gold/90 transition"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ScopeNumberInput({
   value,
   disabled,
@@ -249,10 +354,20 @@ function ScopeNumberInput({
     setDraft(saved);
   }, [saved]);
 
-  usePendingFieldSave(draft, saved, (next) => {
-    const num = next === "" || next == null ? 0 : Number(next);
+  const commitDraft = (raw: string) => {
+    if (raw.trim() === "") return;
+    const num = Number(raw);
     if (!isNaN(num) && num !== value) onCommit(num);
-  }, { debounceMs: 700 });
+  };
+
+  usePendingFieldSave(
+    draft,
+    saved,
+    (next) => {
+      if (next != null) commitDraft(next);
+    },
+    { debounceMs: 700 }
+  );
 
   return (
     <input
@@ -260,11 +375,14 @@ function ScopeNumberInput({
       min={0}
       disabled={disabled}
       value={draft}
-      placeholder="0"
+      placeholder="Enter value"
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => {
-        const num = draft === "" ? 0 : Number(draft);
-        if (!isNaN(num) && num !== value) onCommit(num);
+        if (draft.trim() === "") {
+          setDraft(saved);
+          return;
+        }
+        commitDraft(draft);
       }}
       className="w-full min-h-[48px] rounded-lg border border-field-line/30 bg-field-dark/40 px-3 text-sm text-field-cream focus:outline-none focus:ring-2 focus:ring-field-gold/40"
     />
