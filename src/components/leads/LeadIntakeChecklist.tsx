@@ -145,27 +145,23 @@ export function LeadIntakeChecklist({
                 {def.unit ? ` (${def.unit})` : ""}
               </label>
               {def.inputType === "boolean" ? (
-                <label className="flex items-center gap-2 min-h-[48px] rounded-lg border border-field-line/20 bg-field-dark/30 px-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={val === true}
-                    disabled={!canEdit || saving}
-                    onChange={(e) => {
-                      const next: IntakeChecklistData = {
-                        ...checklist,
-                        site_visit: {
-                          ...site,
-                          [def.key]: e.target.checked,
-                        },
-                      };
-                      persist(next);
-                    }}
-                    className="rounded border-field-line/40 text-field-gold"
-                  />
-                  <span className="text-sm text-field-cream">
-                    {val === true ? "Yes" : val === false ? "No" : "Not set"}
-                  </span>
-                </label>
+                <ScopeBooleanInput
+                  value={val === true ? true : val === false ? false : null}
+                  disabled={!canEdit || saving}
+                  onCommit={(choice) => {
+                    const nextSite = { ...site };
+                    if (choice === null) {
+                      delete nextSite[def.key];
+                    } else {
+                      nextSite[def.key] = choice;
+                    }
+                    const next: IntakeChecklistData = {
+                      ...checklist,
+                      site_visit: nextSite,
+                    };
+                    void persist(next);
+                  }}
+                />
               ) : def.inputType === "number" ? (
                 <ScopeNumberInput
                   value={typeof val === "number" ? val : null}
@@ -334,6 +330,58 @@ function IntakeChecklistDetailModal({
           Close
         </button>
       </div>
+    </div>
+  );
+}
+
+function ScopeBooleanInput({
+  value,
+  disabled,
+  onCommit,
+}: {
+  value: boolean | null;
+  disabled: boolean;
+  onCommit: (choice: boolean | null) => void;
+}) {
+  const options: { key: "unset" | "no" | "yes"; label: string; choice: boolean | null }[] =
+    [
+      { key: "unset", label: "Not set", choice: null },
+      { key: "no", label: "No", choice: false },
+      { key: "yes", label: "Yes", choice: true },
+    ];
+
+  return (
+    <div
+      className="grid grid-cols-3 gap-1 min-h-[48px] rounded-lg border border-field-line/20 bg-field-dark/30 p-1"
+      role="group"
+      aria-label="Yes or no"
+    >
+      {options.map((opt) => {
+        const selected =
+          opt.choice === null
+            ? value === null
+            : value === opt.choice;
+        return (
+          <button
+            key={opt.key}
+            type="button"
+            disabled={disabled}
+            aria-pressed={selected}
+            onClick={() => onCommit(opt.choice)}
+            className={`min-h-[40px] rounded-md px-2 text-xs font-semibold transition ${
+              selected
+                ? opt.choice === true
+                  ? "bg-field-sage/25 text-field-sage border border-field-sage/40"
+                  : opt.choice === false
+                    ? "bg-field-turf/30 text-field-cream border border-field-line/30"
+                    : "bg-field-dark/50 text-field-cream/70 border border-field-line/25"
+                : "text-field-cream/50 hover:text-field-cream hover:bg-field-turf/15 border border-transparent"
+            }`}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

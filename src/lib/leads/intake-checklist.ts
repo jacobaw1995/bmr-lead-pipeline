@@ -97,6 +97,9 @@ function hasValue(
   inputType: "number" | "text" | "boolean",
   minComplete = 0
 ): boolean {
+  if (!siteVisit || !(key in siteVisit)) {
+    if (inputType === "boolean") return false;
+  }
   const v = siteVisit?.[key];
   if (inputType === "boolean") return v === true || v === false;
   if (inputType === "number") {
