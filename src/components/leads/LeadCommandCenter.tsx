@@ -16,6 +16,7 @@ import {
 import {
   COMMAND_STAGES,
   canMarkStageComplete,
+  canNavigateToCommandStage,
   deriveActiveCommandStage,
   getCommandProgress,
   getCommandStageLabel,
@@ -73,6 +74,7 @@ export function LeadCommandCenter({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lead.id]);
 
+  const activeJobPath = deriveActiveCommandStage(lead, appointments);
   const progress = getCommandProgress(lead, appointments);
   const recommended = getRecommendedAction(view, lead, appointments, notes);
   const markLabel = getMarkCompleteLabel(view);
@@ -239,33 +241,69 @@ export function LeadCommandCenter({
             </div>
           </div>
 
-          <div
-            className="mt-4 flex flex-wrap gap-1.5"
-            role="tablist"
-            aria-label="Pipeline stages"
-          >
-            {COMMAND_STAGES.map((stage, i) => {
-              const selected = view === stage.key;
-              const done = completedPills[i];
-              return (
-                <button
-                  key={stage.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={selected}
-                  onClick={() => setView(stage.key)}
-                  className={`shrink-0 min-h-[48px] px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition ${
-                    selected
-                      ? "bg-field-gold text-field-dark shadow-md"
-                      : done
-                        ? "bg-field-sage/20 text-field-sage border border-field-sage/30"
-                        : "bg-field-turf/20 text-field-cream/70 border border-field-line/20 hover:border-field-line/40"
-                  }`}
-                >
-                  {stage.label}
-                </button>
-              );
-            })}
+          <p className="mt-3 text-[10px] text-field-cream/40 leading-relaxed">
+            Job path — separate from the board column. Use{" "}
+            <span className="text-field-cream/55">Mark Complete</span> to
+            advance; tabs only change what you&apos;re viewing.
+          </p>
+
+          <div className="mt-2 -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto scrollbar-hide">
+            <div
+              className="flex sm:flex-wrap gap-1 sm:gap-1.5 min-w-max sm:min-w-0"
+              role="tablist"
+              aria-label="Job path steps"
+            >
+              {COMMAND_STAGES.map((stage, i) => {
+                const selected = view === stage.key;
+                const done = completedPills[i];
+                const isCurrent = activeJobPath === stage.key;
+                const canOpen = canNavigateToCommandStage(
+                  stage.key,
+                  lead,
+                  appointments,
+                  notes
+                );
+                return (
+                  <button
+                    key={stage.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    aria-disabled={!canOpen}
+                    title={
+                      !canOpen
+                        ? "Complete earlier job path steps first"
+                        : isCurrent
+                          ? "Current step"
+                          : done
+                            ? "Completed — tap to review"
+                            : stage.label
+                    }
+                    onClick={() => {
+                      if (!canOpen) {
+                        onToast("Complete earlier job path steps first.");
+                        return;
+                      }
+                      setView(stage.key);
+                    }}
+                    className={`shrink-0 min-h-[32px] sm:min-h-[38px] px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-medium transition ${
+                      !canOpen
+                        ? "bg-field-turf/10 text-field-cream/30 border border-field-line/15 cursor-not-allowed"
+                        : selected
+                          ? "bg-field-gold text-field-dark shadow-md"
+                          : done
+                            ? "bg-field-sage/20 text-field-sage border border-field-sage/30"
+                            : isCurrent
+                              ? "bg-field-turf/25 text-field-cream border border-field-gold/35"
+                              : "bg-field-turf/20 text-field-cream/70 border border-field-line/20 hover:border-field-line/40"
+                    }`}
+                  >
+                    <span className="sm:hidden">{stage.shortLabel}</span>
+                    <span className="hidden sm:inline">{stage.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </header>
 

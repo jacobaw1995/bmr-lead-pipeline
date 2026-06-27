@@ -43,14 +43,34 @@ export type CommandStageKey =
   | "negotiating"
   | "closed";
 
-export const COMMAND_STAGES: { key: CommandStageKey; label: string }[] = [
-  { key: "new_lead", label: "New Lead" },
-  { key: "site_visit", label: "Site Visit Scheduled" },
-  { key: "scope", label: "Scope" },
-  { key: "quote", label: "Quote" },
-  { key: "negotiating", label: "Negotiating" },
-  { key: "closed", label: "Closed" },
+export const COMMAND_STAGES: {
+  key: CommandStageKey;
+  label: string;
+  shortLabel: string;
+}[] = [
+  { key: "new_lead", label: "New Lead", shortLabel: "New" },
+  { key: "site_visit", label: "Site Visit", shortLabel: "Visit" },
+  { key: "scope", label: "Scope", shortLabel: "Scope" },
+  { key: "quote", label: "Quote", shortLabel: "Quote" },
+  { key: "negotiating", label: "Negotiating", shortLabel: "Nego" },
+  { key: "closed", label: "Closed", shortLabel: "Closed" },
 ];
+
+export function getCommandStageIndex(key: CommandStageKey): number {
+  return COMMAND_STAGES.findIndex((s) => s.key === key);
+}
+
+/** Job-path tabs — not the kanban pipeline stage. */
+export function canNavigateToCommandStage(
+  key: CommandStageKey,
+  lead: Lead,
+  appointments?: LeadAppointment[],
+  notes: IntakeNotes = []
+): boolean {
+  if (isCommandStageComplete(key, lead, appointments, notes)) return true;
+  const active = deriveActiveCommandStage(lead, appointments);
+  return getCommandStageIndex(key) <= getCommandStageIndex(active);
+}
 
 export type VitalFieldType =
   | "text"
