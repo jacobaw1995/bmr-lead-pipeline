@@ -59,7 +59,7 @@ export async function getLeadHistory(leadId: string): Promise<LeadHistory> {
       .from("lead_notes")
       .select("*, author:profiles!lead_notes_author_id_fkey(id, full_name)")
       .eq("lead_id", leadId)
-      .order("created_at", { ascending: true }),
+      .order("created_at", { ascending: false }),
     supabase
       .from("lead_activity")
       .select("*, actor:profiles!lead_activity_actor_id_fkey(id, full_name)")

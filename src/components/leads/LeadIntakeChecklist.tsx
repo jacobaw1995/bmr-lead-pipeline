@@ -242,11 +242,17 @@ function ScopeNumberInput({
   disabled: boolean;
   onCommit: (n: number) => void;
 }) {
-  const [draft, setDraft] = useState(value != null ? String(value) : "");
+  const saved = value != null ? String(value) : "";
+  const [draft, setDraft] = useState(saved);
 
   useEffect(() => {
-    setDraft(value != null ? String(value) : "");
-  }, [value]);
+    setDraft(saved);
+  }, [saved]);
+
+  usePendingFieldSave(draft, saved, (next) => {
+    const num = next === "" || next == null ? 0 : Number(next);
+    if (!isNaN(num) && num !== value) onCommit(num);
+  }, { debounceMs: 700 });
 
   return (
     <input

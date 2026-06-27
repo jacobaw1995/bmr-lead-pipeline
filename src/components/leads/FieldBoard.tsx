@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -31,7 +31,10 @@ import type { LeadStage, UserRole } from "@/types/database";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { AddLeadModal } from "./AddLeadModal";
 import { LeadCard } from "./LeadCard";
-import { LeadDetailPanel } from "./LeadDetailPanel";
+import {
+  LeadDetailPanel,
+  type LeadDetailPanelDraftApi,
+} from "./LeadDetailPanel";
 import { LeadSearchBar } from "./LeadSearchBar";
 import { PipelineColumn } from "./PipelineColumn";
 
@@ -70,6 +73,7 @@ export function FieldBoard({
   const [searchFilters, setSearchFilters] = useState<LeadSearchFilters>(
     DEFAULT_LEAD_SEARCH_FILTERS
   );
+  const draftApiRef = useRef<LeadDetailPanelDraftApi | null>(null);
 
   const isManager = currentUserRole === "manager";
 
@@ -113,9 +117,19 @@ export function FieldBoard({
     [leads, selectedLeadId]
   );
 
-  const handleOpenDetail = useCallback((lead: LeadWithOwner) => {
-    setSelectedLeadId(lead.id);
-  }, []);
+  const handleOpenDetail = useCallback(
+    async (lead: LeadWithOwner) => {
+      if (selectedLeadId && selectedLeadId !== lead.id && draftApiRef.current) {
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, 0));
+        await draftApiRef.current.flushPendingSaves();
+      }
+      setSelectedLeadId(lead.id);
+    },
+    [selectedLeadId]
+  );
 
   function handleDragStart(event: DragStartEvent) {
     setErrorMessage(null);
@@ -303,6 +317,9 @@ export function FieldBoard({
         lead={selectedLead}
         currentUserId={currentUserId}
         currentUserRole={currentUserRole}
+        onDraftApi={(api) => {
+          draftApiRef.current = api;
+        }}
         onClose={() => setSelectedLeadId(null)}
         onLeadClosed={() => {
           setSelectedLeadId(null);

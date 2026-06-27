@@ -176,14 +176,6 @@ export function LeadNotesSection({
     >
       {hasEntries ? (
         <>
-          {hasLegacy && (
-            <NoteBlock
-              authorName="Team"
-              timestamp={lead.updated_at}
-              content={legacyNotes}
-              variant="legacy"
-            />
-          )}
           {notes.map((note) => (
             <NoteBlock
               key={note.id}
@@ -192,6 +184,14 @@ export function LeadNotesSection({
               content={note.content}
             />
           ))}
+          {hasLegacy && (
+            <NoteBlock
+              authorName="Team"
+              timestamp={lead.updated_at}
+              content={legacyNotes}
+              variant="legacy"
+            />
+          )}
         </>
       ) : (
         <p className="text-xs text-field-cream/35 italic py-2">

@@ -95,7 +95,8 @@ export function LeadVitalFields({
       )}
       {fields.map((field) => (
         <VitalFieldCard
-          key={`${field.key}-${field.rawValue ?? field.value ?? ""}`}
+          key={`${lead.id}-${field.key}`}
+          leadId={lead.id}
           field={field}
           canEdit={canEdit && !!field.patchKey}
           saving={saving === field.key}
@@ -107,11 +108,13 @@ export function LeadVitalFields({
 }
 
 function VitalFieldCard({
+  leadId,
   field,
   canEdit,
   saving,
   onSave,
 }: {
+  leadId: string;
   field: VitalFieldDef;
   canEdit: boolean;
   saving: boolean;
@@ -126,7 +129,7 @@ function VitalFieldCard({
 
   useEffect(() => {
     setDraft(initial);
-  }, [initial, field.key]);
+  }, [initial, field.key, leadId]);
 
   usePendingFieldSave(draft, savedValue, (value) => onSave(value), {
     debounceMs: 700,

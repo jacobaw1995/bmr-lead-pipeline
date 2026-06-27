@@ -17,12 +17,33 @@ import { LeadNotesSection } from "./LeadNotesSection";
 import { LeadProspectPanel } from "./LeadProspectPanel";
 import { LeadToast } from "./LeadToast";
 
+export type LeadDetailPanelDraftApi = {
+  flushPendingSaves: () => Promise<void>;
+};
+
 interface LeadDetailPanelProps {
   lead: LeadWithOwner | null;
   currentUserId: string;
   currentUserRole: UserRole;
   onClose: () => void;
   onLeadClosed?: () => void;
+  onDraftApi?: (api: LeadDetailPanelDraftApi | null) => void;
+}
+
+function DraftApiBridge({
+  onDraftApi,
+}: {
+  onDraftApi?: (api: LeadDetailPanelDraftApi | null) => void;
+}) {
+  const { flushPendingSaves } = useLeadPanelDraft();
+
+  useEffect(() => {
+    if (!onDraftApi) return;
+    onDraftApi({ flushPendingSaves });
+    return () => onDraftApi(null);
+  }, [flushPendingSaves, onDraftApi]);
+
+  return null;
 }
 
 function LeadDetailPanelContent({
@@ -103,7 +124,7 @@ function LeadDetailPanelContent({
     <div className="fixed inset-0 z-50 flex items-stretch justify-center">
       <div
         aria-hidden
-        className="absolute inset-0 bg-field-dark/35 backdrop-blur-[2px] pointer-events-none"
+        className="absolute inset-0 bg-field-dark/35 backdrop-blur-[2px] pointer-events-auto"
       />
 
       <div className="relative flex flex-col sm:flex-row w-full max-w-7xl h-full sm:h-[min(100%,900px)] sm:my-auto mx-auto bg-field-dark sm:rounded-2xl sm:border border-field-line/20 shadow-2xl overflow-hidden safe-area-bottom pointer-events-auto">
@@ -212,11 +233,13 @@ export function LeadDetailPanel({
   currentUserRole,
   onClose,
   onLeadClosed,
+  onDraftApi,
 }: LeadDetailPanelProps) {
   if (!lead) return null;
 
   return (
     <LeadPanelDraftProvider onClose={onClose}>
+      <DraftApiBridge onDraftApi={onDraftApi} />
       <LeadDetailPanelContent
         lead={lead}
         currentUserId={currentUserId}

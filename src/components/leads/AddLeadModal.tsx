@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createLead } from "@/lib/leads/actions";
 import type { LeadProfileInput } from "@/lib/leads/profile";
@@ -22,6 +22,36 @@ const emptyProfile: LeadProfileInput = {
   email: "",
 };
 
+function hasAddressData(addr: LeadProfileInput["billing"]) {
+  return Boolean(
+    addr?.streetAddress?.trim() ||
+      addr?.city?.trim() ||
+      addr?.state?.trim() ||
+      addr?.zip?.trim()
+  );
+}
+
+function isAddLeadFormDirty(
+  profile: LeadProfileInput,
+  sourcePicked: string,
+  customSource: string,
+  referralWho: string
+) {
+  return (
+    (profile.firstName?.trim() ?? "") !== "" ||
+    (profile.lastName?.trim() ?? "") !== "" ||
+    (profile.companyName?.trim() ?? "") !== "" ||
+    (profile.cellPhone?.trim() ?? "") !== "" ||
+    (profile.secondaryPhone?.trim() ?? "") !== "" ||
+    (profile.email?.trim() ?? "") !== "" ||
+    hasAddressData(profile.billing) ||
+    hasAddressData(profile.service) ||
+    customSource.trim() !== "" ||
+    referralWho.trim() !== "" ||
+    sourcePicked !== "Phone Call"
+  );
+}
+
 export function AddLeadModal({ open, onClose }: AddLeadModalProps) {
   const router = useRouter();
   const [profile, setProfile] = useState<LeadProfileInput>(emptyProfile);
@@ -40,14 +70,28 @@ export function AddLeadModal({ open, onClose }: AddLeadModalProps) {
     }
   }, [open]);
 
+  const requestDismiss = useCallback(() => {
+    if (
+      isAddLeadFormDirty(profile, sourcePicked, customSource, referralWho) &&
+      !window.confirm("Discard unsaved lead info?")
+    ) {
+      return;
+    }
+    onClose();
+  }, [profile, sourcePicked, customSource, referralWho, onClose]);
+
   useEffect(() => {
     if (!open) return;
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") requestDismiss();
     }
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose]);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [open, requestDismiss]);
 
   if (!open) return null;
 
@@ -75,11 +119,9 @@ export function AddLeadModal({ open, onClose }: AddLeadModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label="Close"
+      <div
+        aria-hidden
         className="absolute inset-0 bg-field-dark/70 backdrop-blur-sm"
-        onClick={onClose}
       />
 
       <div className="relative w-full max-w-lg rounded-xl border border-field-line/30 bg-field-dark shadow-xl max-h-[90vh] overflow-y-auto">
@@ -111,7 +153,7 @@ export function AddLeadModal({ open, onClose }: AddLeadModalProps) {
           <div className="flex gap-3 pt-2 sticky bottom-0 bg-field-dark pb-1">
             <button
               type="button"
-              onClick={onClose}
+              onClick={requestDismiss}
               className="flex-1 rounded-lg border border-field-line/30 px-4 py-2.5 text-sm font-medium text-field-cream/70 hover:bg-field-turf/20 transition"
             >
               Cancel
