@@ -1,11 +1,13 @@
 /** Standard pick-list — reps can also enter a custom source */
 export const STANDARD_LEAD_SOURCES = [
   "Phone Call",
-  "Yard Sign",
+  "Google Maps",
+  "Google Search",
+  "Google Local Services",
   "Website",
-  "Facebook",
+  "Yard Sign",
   "Referral",
-  "Google",
+  "Facebook",
   "Door Knock",
   "Home Show",
 ] as const;
@@ -50,28 +52,49 @@ export function formatLeadSourceDisplay(lead: {
   return source;
 }
 
+const SOURCE_ALIASES: Record<string, StandardLeadSource> = {
+  google: "Google Search",
+  "google maps": "Google Maps",
+  "google map": "Google Maps",
+  "google search": "Google Search",
+  "google local services": "Google Local Services",
+  "google local service": "Google Local Services",
+  "google my business": "Google Maps",
+  gmb: "Google Maps",
+  manual: "Phone Call",
+  webhook: "Website",
+};
+
+/** Map stored or imported text to a standard source when possible */
+export function normalizeSourceText(raw: string | undefined): string {
+  if (!raw?.trim()) return "Phone Call";
+  const trimmed = raw.trim();
+  const lower = trimmed.toLowerCase();
+
+  const exact = STANDARD_LEAD_SOURCES.find((s) => s.toLowerCase() === lower);
+  if (exact) return exact;
+
+  const alias = SOURCE_ALIASES[lower];
+  if (alias) return alias;
+
+  return trimmed;
+}
+
 export function sourceToPickerValues(source: string | null | undefined): {
   picked: string;
   customSource: string;
 } {
   const trimmed = source?.trim() ?? "";
   if (!trimmed) return { picked: "Phone Call", customSource: "" };
-  if (isStandardSource(trimmed)) {
-    return { picked: trimmed, customSource: "" };
+
+  const normalized = normalizeSourceText(trimmed);
+  if (isStandardSource(normalized)) {
+    return { picked: normalized, customSource: "" };
   }
   return { picked: CUSTOM_SOURCE_VALUE, customSource: trimmed };
 }
 
 /** Match CSV/import text to a standard source when possible */
 export function normalizeImportedSource(raw: string | undefined): string {
-  if (!raw?.trim()) return "Phone Call";
-  const lower = raw.trim().toLowerCase();
-  const match = STANDARD_LEAD_SOURCES.find(
-    (s) => s.toLowerCase() === lower
-  );
-  if (match) return match;
-  // legacy aliases
-  if (lower === "manual") return "Phone Call";
-  if (lower === "webhook") return "Website";
-  return raw.trim();
+  return normalizeSourceText(raw);
 }

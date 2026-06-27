@@ -54,7 +54,7 @@ export function LeadSourcePicker({
               onChange={() => onPickedChange(source)}
               className="accent-field-gold shrink-0"
             />
-            <span className="leading-tight">{source}</span>
+            <span className="leading-tight min-w-0">{source}</span>
           </label>
         ))}
         <label
