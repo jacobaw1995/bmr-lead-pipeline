@@ -50,19 +50,14 @@ export function LeadOwnerReassign({ lead, onReassigned }: LeadOwnerReassignProps
   }
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <label
-        htmlFor={`owner-${lead.id}`}
-        className="text-xs text-field-cream/40 shrink-0"
-      >
-        Owner:
-      </label>
+    <div className="space-y-1">
       <select
         id={`owner-${lead.id}`}
         value={value}
         disabled={loading}
         onChange={(e) => handleChange(e.target.value)}
-        className="text-xs rounded-md border border-field-line/25 bg-field-turf/10 text-field-cream/80 px-2 py-1 focus:outline-none focus:ring-1 focus:ring-field-gold/40 disabled:opacity-50 max-w-[180px]"
+        aria-label="Lead owner"
+        className="w-full text-sm rounded-lg border border-field-line/25 bg-field-turf/10 text-field-cream/80 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-field-gold/40 disabled:opacity-50"
       >
         <option value="">Unclaimed</option>
         {reps.map((rep) => (

@@ -132,9 +132,12 @@ function ProspectFields({
       )}
 
       <div>
-        <p className="text-[10px] uppercase tracking-wide text-field-cream/40 mb-1">
+        <label
+          htmlFor={isManager && isActive ? `owner-${lead.id}` : undefined}
+          className="text-[10px] uppercase tracking-wide text-field-cream/40 mb-1 block"
+        >
           Owner
-        </p>
+        </label>
         {isManager && isActive ? (
           <LeadOwnerReassign
             lead={lead}
@@ -146,7 +149,7 @@ function ProspectFields({
         ) : (
           <p className="text-field-cream/75">
             {lead.owner_id
-              ? lead.owner?.full_name ?? "Unknown"
+              ? lead.owner?.full_name?.trim() || "Unknown"
               : "Unclaimed"}
           </p>
         )}
