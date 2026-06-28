@@ -80,10 +80,9 @@ export async function getDailyBrief(
     }
   }
 
-  const todayAppointments = parseTodayAppointments(
-    appointmentsResult.data ?? [],
-    ctx
-  );
+  const todayAppointments = appointmentsResult.error
+    ? []
+    : parseTodayAppointments(appointmentsResult.data ?? [], ctx);
 
   const rawCoachCalls = [
     ...buildAppointmentCoachItems(todayAppointments),

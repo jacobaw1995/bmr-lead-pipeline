@@ -270,7 +270,7 @@ export function parseTodayAppointments(
   rows: Record<string, unknown>[],
   ctx: RuleContext
 ): TodayAppointment[] {
-  return rows.map((row) => {
+  return rows.flatMap((row) => {
     const leadRaw = row.leads;
     const lead = (Array.isArray(leadRaw) ? leadRaw[0] : leadRaw) as Pick<
       Lead,
@@ -289,7 +289,10 @@ export function parseTodayAppointments(
       | "service_city"
       | "service_state"
       | "service_zip"
-    >;
+    > | null;
+
+    if (!lead || !row.scheduled_at) return [];
+
     const scheduledAt = row.scheduled_at as string;
     const scheduledDate = new Date(scheduledAt);
     const isOverdue = isAppointmentOverdue(scheduledAt, ctx.now);
@@ -298,16 +301,18 @@ export function parseTodayAppointments(
       scheduledDate.getTime() >= ctx.now.getTime() &&
       scheduledDate.getTime() <= ctx.twoHoursFromNow.getTime();
 
-    return {
-      id: row.id as string,
-      leadId: row.lead_id as string,
-      leadName: formatLeadDisplayName(lead),
-      location: formatFullAddress(lead),
-      phone: getPrimaryPhone(lead),
-      appointmentType: row.appointment_type as AppointmentType,
-      scheduledAt,
-      isSoon,
-      isOverdue,
-    };
+    return [
+      {
+        id: row.id as string,
+        leadId: row.lead_id as string,
+        leadName: formatLeadDisplayName(lead),
+        location: formatFullAddress(lead),
+        phone: getPrimaryPhone(lead),
+        appointmentType: row.appointment_type as AppointmentType,
+        scheduledAt,
+        isSoon,
+        isOverdue,
+      },
+    ];
   });
 }

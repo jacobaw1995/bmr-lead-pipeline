@@ -18,6 +18,7 @@ import {
   DEFAULT_LEAD_SEARCH_FILTERS,
   filterLeads,
   hasActiveFilters,
+  type LeadNoteSearchIndex,
   type LeadSearchFilters,
 } from "@/lib/leads/search";
 import { groupLeadsByStage } from "@/lib/leads/utils";
@@ -41,6 +42,7 @@ import { PipelineColumn } from "./PipelineColumn";
 interface FieldBoardProps {
   initialLeads: LeadWithOwner[];
   initialLeadId?: string | null;
+  noteSearchIndex?: LeadNoteSearchIndex;
   currentUserId: string;
   currentUserRole: UserRole;
 }
@@ -48,6 +50,7 @@ interface FieldBoardProps {
 export function FieldBoard({
   initialLeads,
   initialLeadId = null,
+  noteSearchIndex = {},
   currentUserId,
   currentUserRole,
 }: FieldBoardProps) {
@@ -78,8 +81,8 @@ export function FieldBoard({
   const isManager = currentUserRole === "manager";
 
   const filteredLeads = useMemo(
-    () => filterLeads(leads, searchFilters, currentUserId),
-    [leads, searchFilters, currentUserId]
+    () => filterLeads(leads, searchFilters, currentUserId, noteSearchIndex),
+    [leads, searchFilters, currentUserId, noteSearchIndex]
   );
 
   const filtersActive = hasActiveFilters(searchFilters);

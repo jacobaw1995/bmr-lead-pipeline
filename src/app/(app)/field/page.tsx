@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import { FieldBoard } from "@/components/leads/FieldBoard";
-import { getActivePipelineLeads } from "@/lib/leads/queries";
+import {
+  fetchLeadNoteSearchIndex,
+  getActivePipelineLeads,
+} from "@/lib/leads/queries";
 import { getCurrentProfile } from "@/lib/supabase/profile";
 import { createClient } from "@/lib/supabase/server";
 
@@ -20,11 +23,15 @@ export default async function FieldPage({
 
   const profile = await getCurrentProfile();
   const leads = await getActivePipelineLeads();
+  const noteSearchIndex = await fetchLeadNoteSearchIndex(
+    leads.map((lead) => lead.id)
+  );
 
   return (
     <FieldBoard
       initialLeads={leads}
       initialLeadId={searchParams.lead ?? null}
+      noteSearchIndex={noteSearchIndex}
       currentUserId={user.id}
       currentUserRole={profile?.role ?? "salesman"}
     />

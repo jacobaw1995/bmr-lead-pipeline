@@ -1,13 +1,15 @@
 import { formatLeadSourceDisplay } from "@/lib/leads/sources";
+import { parseIntakeChecklist } from "@/lib/leads/intake-checklist";
 import { formatRoofTypes } from "@/lib/leads/roof-types";
 import type { LeadWithOwner } from "@/lib/leads/types";
-import type { LeadStage } from "@/types/database";
+import type { LeadStage, LeadStatus } from "@/types/database";
 
 export type LeadOwnershipFilter = "all" | "mine" | "unclaimed" | string;
 
 export interface LeadSearchFilters {
   query: string;
   stage: LeadStage | "all";
+  status: LeadStatus | "all";
   ownership: LeadOwnershipFilter;
   source: string;
   city: string;
@@ -16,10 +18,13 @@ export interface LeadSearchFilters {
 export const DEFAULT_LEAD_SEARCH_FILTERS: LeadSearchFilters = {
   query: "",
   stage: "all",
+  status: "all",
   ownership: "all",
   source: "all",
   city: "all",
 };
+
+export type LeadNoteSearchIndex = Record<string, string[]>;
 
 function normalizeSearchText(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
@@ -34,7 +39,32 @@ function leadCity(lead: LeadWithOwner): string | null {
   return city;
 }
 
-export function buildLeadSearchText(lead: LeadWithOwner): string {
+function formatSiteVisitSearchText(
+  site: Record<string, string | number | boolean>
+): string {
+  const parts: string[] = [];
+  for (const [key, value] of Object.entries(site)) {
+    if (value === "" || value == null) continue;
+    const label = key.replace(/_/g, " ");
+    if (typeof value === "boolean") {
+      parts.push(`${label} ${value ? "yes" : "no"}`);
+    } else {
+      parts.push(`${label} ${value}`);
+      if (key === "roof_sqft") {
+        parts.push(`${value} sqft`, `${value} square feet`);
+      }
+    }
+  }
+  return parts.join(" ");
+}
+
+export function buildLeadSearchText(
+  lead: LeadWithOwner,
+  noteTexts: string[] = []
+): string {
+  const checklist = parseIntakeChecklist(lead.intake_checklist);
+  const site = checklist.site_visit ?? {};
+
   const parts = [
     lead.name,
     lead.first_name,
@@ -64,6 +94,16 @@ export function buildLeadSearchText(lead: LeadWithOwner): string {
     formatRoofTypes(lead.roof_type_requested),
     lead.existing_roof_type,
     lead.roof_type_requested,
+    lead.homeowner_or_contractor,
+    lead.remodel_or_new_construction,
+    lead.lost_reason,
+    checklist.main_issue,
+    checklist.general_notes,
+    formatSiteVisitSearchText(site),
+    lead.value != null ? String(lead.value) : null,
+    lead.status,
+    lead.stage,
+    ...noteTexts,
   ];
 
   return normalizeSearchText(parts.filter(Boolean).join(" "));
@@ -73,6 +113,7 @@ export function hasActiveFilters(filters: LeadSearchFilters): boolean {
   return (
     filters.query.trim() !== "" ||
     filters.stage !== "all" ||
+    filters.status !== "all" ||
     filters.ownership !== "all" ||
     filters.source !== "all" ||
     filters.city !== "all"
@@ -82,11 +123,16 @@ export function hasActiveFilters(filters: LeadSearchFilters): boolean {
 export function filterLeads(
   leads: LeadWithOwner[],
   filters: LeadSearchFilters,
-  currentUserId: string
+  currentUserId: string,
+  noteSearchIndex: LeadNoteSearchIndex = {}
 ): LeadWithOwner[] {
   const query = normalizeSearchText(filters.query);
 
   return leads.filter((lead) => {
+    if (filters.status !== "all" && lead.status !== filters.status) {
+      return false;
+    }
+
     if (filters.stage !== "all" && lead.stage !== filters.stage) {
       return false;
     }
@@ -114,7 +160,7 @@ export function filterLeads(
     }
 
     if (query) {
-      const haystack = buildLeadSearchText(lead);
+      const haystack = buildLeadSearchText(lead, noteSearchIndex[lead.id] ?? []);
       if (!haystack.includes(query)) return false;
     }
 

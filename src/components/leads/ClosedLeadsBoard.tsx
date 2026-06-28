@@ -7,6 +7,7 @@ import {
   DEFAULT_LEAD_SEARCH_FILTERS,
   filterLeads,
   hasActiveFilters,
+  type LeadNoteSearchIndex,
   type LeadSearchFilters,
 } from "@/lib/leads/search";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -16,6 +17,7 @@ import { LeadSearchBar } from "./LeadSearchBar";
 
 interface ClosedLeadsBoardProps {
   leads: LeadWithOwner[];
+  noteSearchIndex?: LeadNoteSearchIndex;
   currentUserId: string;
   currentUserRole: UserRole;
   variant: "won" | "lost";
@@ -25,6 +27,7 @@ interface ClosedLeadsBoardProps {
 
 export function ClosedLeadsBoard({
   leads,
+  noteSearchIndex = {},
   currentUserId,
   currentUserRole,
   variant,
@@ -40,8 +43,8 @@ export function ClosedLeadsBoard({
   const filtersActive = hasActiveFilters(searchFilters);
 
   const filteredLeads = useMemo(
-    () => filterLeads(leads, searchFilters, currentUserId),
-    [leads, searchFilters, currentUserId]
+    () => filterLeads(leads, searchFilters, currentUserId, noteSearchIndex),
+    [leads, searchFilters, currentUserId, noteSearchIndex]
   );
 
   const selectedLead = useMemo(

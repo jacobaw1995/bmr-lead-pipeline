@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import { ClosedLeadsBoard } from "@/components/leads/ClosedLeadsBoard";
-import { getClosedLostLeads } from "@/lib/leads/queries";
+import {
+  fetchLeadNoteSearchIndex,
+  getClosedLostLeads,
+} from "@/lib/leads/queries";
 import { getCurrentProfile } from "@/lib/supabase/profile";
 import { createClient } from "@/lib/supabase/server";
 
@@ -16,6 +19,9 @@ export default async function LostPage() {
 
   const profile = await getCurrentProfile();
   const leads = await getClosedLostLeads();
+  const noteSearchIndex = await fetchLeadNoteSearchIndex(
+    leads.map((lead) => lead.id)
+  );
 
   return (
     <div className="px-4 py-8 min-h-full bg-gradient-to-b from-field-turf to-field-turf-dark/80">
@@ -33,6 +39,7 @@ export default async function LostPage() {
 
         <ClosedLeadsBoard
           leads={leads}
+          noteSearchIndex={noteSearchIndex}
           currentUserId={user.id}
           currentUserRole={profile?.role ?? "salesman"}
           variant="lost"

@@ -20,10 +20,25 @@ export default async function LockerPage() {
   if (!user) redirect("/login");
 
   const profile = await getCurrentProfile();
-  const [brief, stats] = await Promise.all([
-    getDailyBrief(user.id, profile?.full_name ?? "Rep"),
-    getPersonalStats(),
-  ]);
+  let brief;
+  let stats;
+  try {
+    [brief, stats] = await Promise.all([
+      getDailyBrief(user.id, profile?.full_name ?? "Rep"),
+      getPersonalStats(),
+    ]);
+  } catch {
+    brief = {
+      greetingName: profile?.full_name ?? "Rep",
+      todayAppointments: [],
+      coachCalls: [],
+      actionCount: 0,
+      poolCount: 0,
+      appointmentsTodayCount: 0,
+      isAllClear: true,
+    };
+    stats = null;
+  }
 
   if (!stats) redirect("/login");
 

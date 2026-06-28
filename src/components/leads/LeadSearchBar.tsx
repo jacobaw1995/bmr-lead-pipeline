@@ -18,6 +18,7 @@ interface LeadSearchBarProps {
   onFiltersChange: (filters: LeadSearchFilters) => void;
   filteredCount: number;
   isManager: boolean;
+  showStatusFilter?: boolean;
 }
 
 const selectClass =
@@ -47,6 +48,7 @@ export function LeadSearchBar({
   onFiltersChange,
   filteredCount,
   isManager,
+  showStatusFilter = false,
 }: LeadSearchBarProps) {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -75,7 +77,36 @@ export function LeadSearchBar({
       : `${filteredCount} of ${total}`;
 
   const filterFields = (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 pt-2">
+    <div
+      className={`grid gap-2 pt-2 ${
+        showStatusFilter
+          ? "grid-cols-2 lg:grid-cols-5"
+          : "grid-cols-2 lg:grid-cols-4"
+      }`}
+    >
+      {showStatusFilter && (
+        <div>
+          <label
+            htmlFor="lead-filter-status"
+            className="text-[10px] uppercase tracking-wide text-field-cream/40 mb-0.5 block"
+          >
+            Status
+          </label>
+          <select
+            id="lead-filter-status"
+            value={filters.status}
+            onChange={(e) =>
+              update("status", e.target.value as LeadSearchFilters["status"])
+            }
+            className={selectClass}
+          >
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="closed_won">Won</option>
+            <option value="closed_lost">Lost</option>
+          </select>
+        </div>
+      )}
       <div>
         <label
           htmlFor="lead-filter-stage"
@@ -182,7 +213,7 @@ export function LeadSearchBar({
               type="search"
               value={filters.query}
               onChange={(e) => update("query", e.target.value)}
-              placeholder="Search leads…"
+              placeholder="Search name, notes, sq ft, address, phone…"
               className="w-full h-9 rounded-md border border-field-line/30 bg-field-turf/10 pl-8 pr-3 text-xs text-field-cream placeholder:text-field-cream/35 focus:outline-none focus:ring-2 focus:ring-field-gold/40"
             />
             <span

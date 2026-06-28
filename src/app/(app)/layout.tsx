@@ -23,10 +23,13 @@ export default async function AppLayout({
     redirect("/login");
   }
 
-  const [profile, stats] = await Promise.all([
-    getCurrentProfile(),
-    getPersonalStats(),
-  ]);
+  const profile = await getCurrentProfile();
+  let stats = null;
+  try {
+    stats = await getPersonalStats();
+  } catch {
+    stats = null;
+  }
 
   const theme = (profile?.theme_preference ?? "dark") as ThemePreference;
 

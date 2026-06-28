@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import { ClosedLeadsBoard } from "@/components/leads/ClosedLeadsBoard";
-import { getClosedWonLeads } from "@/lib/leads/queries";
+import {
+  fetchLeadNoteSearchIndex,
+  getClosedWonLeads,
+} from "@/lib/leads/queries";
 import { getCurrentProfile } from "@/lib/supabase/profile";
 import { createClient } from "@/lib/supabase/server";
 
@@ -16,6 +19,9 @@ export default async function WinnersPage() {
 
   const profile = await getCurrentProfile();
   const leads = await getClosedWonLeads();
+  const noteSearchIndex = await fetchLeadNoteSearchIndex(
+    leads.map((lead) => lead.id)
+  );
 
   return (
     <div className="px-4 py-8 min-h-full">
@@ -35,6 +41,7 @@ export default async function WinnersPage() {
 
         <ClosedLeadsBoard
           leads={leads}
+          noteSearchIndex={noteSearchIndex}
           currentUserId={user.id}
           currentUserRole={profile?.role ?? "salesman"}
           variant="won"

@@ -100,3 +100,42 @@ export async function getClosedLostLeads(): Promise<LeadWithOwner[]> {
 
   return data as LeadWithOwner[];
 }
+
+/** Every lead in the system — active, won, and lost. */
+export async function getAllLeadsForVault(): Promise<LeadWithOwner[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("leads")
+    .select("*, owner:profiles!leads_owner_id_fkey(id, full_name)")
+    .order("updated_at", { ascending: false });
+
+  if (error || !data) return [];
+
+  return attachAppointments(data as LeadWithOwner[]);
+}
+
+/** Note text grouped by lead id for full-text search (fails safe if table missing). */
+export async function fetchLeadNoteSearchIndex(
+  leadIds: string[]
+): Promise<Record<string, string[]>> {
+  if (leadIds.length === 0) return {};
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("lead_notes")
+    .select("lead_id, content")
+    .in("lead_id", leadIds);
+
+  if (error || !data) return {};
+
+  const index: Record<string, string[]> = {};
+  for (const row of data) {
+    const content = (row.content as string)?.trim();
+    if (!content) continue;
+    const list = index[row.lead_id as string] ?? [];
+    list.push(content);
+    index[row.lead_id as string] = list;
+  }
+  return index;
+}
