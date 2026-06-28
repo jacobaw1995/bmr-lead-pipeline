@@ -1,5 +1,8 @@
 import { redirect } from "next/navigation";
 import { FieldBoard } from "@/components/leads/FieldBoard";
+import { getSiteVisitCalendarAppointments } from "@/lib/calendar/queries";
+import type { CalendarSiteVisit } from "@/lib/calendar/types";
+import { parseCalendarMonth, parseFieldView } from "@/lib/calendar/utils";
 import {
   fetchLeadNoteSearchIndex,
   getActivePipelineLeads,
@@ -12,7 +15,7 @@ export const dynamic = "force-dynamic";
 export default async function FieldPage({
   searchParams,
 }: {
-  searchParams: { lead?: string };
+  searchParams: { lead?: string; view?: string; month?: string };
 }) {
   const supabase = await createClient();
   const {
@@ -22,10 +25,22 @@ export default async function FieldPage({
   if (!user) redirect("/login");
 
   const profile = await getCurrentProfile();
+  const fieldView = parseFieldView(searchParams.view);
+  const { year, month } = parseCalendarMonth(searchParams.month);
+
   const leads = await getActivePipelineLeads();
   const noteSearchIndex = await fetchLeadNoteSearchIndex(
     leads.map((lead) => lead.id)
   );
+
+  let calendarAppointments: CalendarSiteVisit[] = [];
+  if (fieldView === "calendar") {
+    try {
+      calendarAppointments = await getSiteVisitCalendarAppointments(year, month);
+    } catch {
+      // Empty calendar beats a server error page
+    }
+  }
 
   return (
     <FieldBoard
@@ -34,6 +49,10 @@ export default async function FieldPage({
       noteSearchIndex={noteSearchIndex}
       currentUserId={user.id}
       currentUserRole={profile?.role ?? "salesman"}
+      fieldView={fieldView}
+      calendarAppointments={calendarAppointments}
+      calendarYear={year}
+      calendarMonth={month}
     />
   );
 }

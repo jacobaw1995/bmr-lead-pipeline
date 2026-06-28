@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { fieldLeadHref } from "@/lib/brief/utils";
 import {
   APPOINTMENT_TYPE_LABELS,
   formatAppointmentDateTime,
@@ -10,6 +9,7 @@ import {
 import { phoneTelHref } from "@/lib/leads/phone";
 import type { CalendarRepFilter, CalendarSiteVisit } from "@/lib/calendar/types";
 import {
+  buildFieldHref,
   buildMonthGrid,
   formatDayHeading,
   formatMonthKey,
@@ -26,6 +26,8 @@ interface SiteVisitCalendarProps {
   month: number;
   currentUserId: string;
   isManager: boolean;
+  /** Preserved when opening a lead from the calendar while in Field view. */
+  contextLeadId?: string | null;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -50,7 +52,17 @@ export function SiteVisitCalendar({
   month,
   currentUserId,
   isManager,
+  contextLeadId = null,
 }: SiteVisitCalendarProps) {
+  const monthKey = formatMonthKey(year, month);
+  const monthHref = (y: number, m: number) =>
+    buildFieldHref({
+      view: "calendar",
+      month: formatMonthKey(y, m),
+      lead: contextLeadId,
+    });
+  const leadHref = (leadId: string) =>
+    buildFieldHref({ view: "calendar", month: monthKey, lead: leadId });
   const [repFilter, setRepFilter] = useState<CalendarRepFilter>("all");
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
@@ -122,7 +134,7 @@ export function SiteVisitCalendar({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-2">
           <Link
-            href={`/calendar?month=${formatMonthKey(prev.year, prev.month)}`}
+            href={monthHref(prev.year, prev.month)}
             className="w-9 h-9 rounded-lg border border-field-line/20 text-field-cream/70 hover:bg-field-turf/20 flex items-center justify-center transition"
             aria-label="Previous month"
           >
@@ -132,7 +144,7 @@ export function SiteVisitCalendar({
             {monthLabel}
           </h2>
           <Link
-            href={`/calendar?month=${formatMonthKey(next.year, next.month)}`}
+            href={monthHref(next.year, next.month)}
             className="w-9 h-9 rounded-lg border border-field-line/20 text-field-cream/70 hover:bg-field-turf/20 flex items-center justify-center transition"
             aria-label="Next month"
           >
@@ -140,7 +152,7 @@ export function SiteVisitCalendar({
           </Link>
           {formatMonthKey(year, month) !== todayKey && (
             <Link
-              href="/calendar"
+              href={buildFieldHref({ view: "calendar", lead: contextLeadId })}
               className="ml-1 text-xs font-medium text-field-gold hover:text-field-cream transition px-2 py-1 rounded border border-field-gold/30"
             >
               Today
@@ -271,7 +283,7 @@ export function SiteVisitCalendar({
           <p className="text-sm text-field-cream/45">
             {selectedDay
               ? `No site visits on ${formatDayHeading(selectedDay)}.`
-              : "No site visits this month — schedule surveys from The Field."}
+              : "No site visits this month — schedule surveys from the pipeline view."}
           </p>
         </div>
       ) : (
@@ -283,7 +295,11 @@ export function SiteVisitCalendar({
               </h3>
               <ul className="space-y-2">
                 {dayAppointments.map((apt) => (
-                  <AppointmentRow key={apt.id} appointment={apt} />
+                  <AppointmentRow
+                    key={apt.id}
+                    appointment={apt}
+                    leadHref={leadHref}
+                  />
                 ))}
               </ul>
             </section>
@@ -294,7 +310,13 @@ export function SiteVisitCalendar({
   );
 }
 
-function AppointmentRow({ appointment: apt }: { appointment: CalendarSiteVisit }) {
+function AppointmentRow({
+  appointment: apt,
+  leadHref,
+}: {
+  appointment: CalendarSiteVisit;
+  leadHref: (leadId: string) => string;
+}) {
   const tel = apt.phone ? phoneTelHref(apt.phone) : "";
   const borderClass = apt.isOverdue
     ? "border-red-800/40 bg-red-950/20"
@@ -307,7 +329,7 @@ function AppointmentRow({ appointment: apt }: { appointment: CalendarSiteVisit }
   return (
     <li>
       <Link
-        href={fieldLeadHref(apt.leadId)}
+        href={leadHref(apt.leadId)}
         className={`flex items-start gap-3 rounded-lg border p-3 transition hover:bg-field-turf/15 ${borderClass}`}
       >
         <div className="shrink-0 w-16 text-center">

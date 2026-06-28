@@ -75,3 +75,22 @@ export function formatDayHeading(date: Date): string {
     day: "numeric",
   });
 }
+
+export type FieldView = "pipeline" | "calendar";
+
+export function parseFieldView(raw?: string): FieldView {
+  return raw === "calendar" ? "calendar" : "pipeline";
+}
+
+export function buildFieldHref(opts: {
+  view?: FieldView;
+  month?: string;
+  lead?: string | null;
+}): string {
+  const params = new URLSearchParams();
+  if (opts.view === "calendar") params.set("view", "calendar");
+  if (opts.month) params.set("month", opts.month);
+  if (opts.lead) params.set("lead", opts.lead);
+  const query = params.toString();
+  return query ? `/field?${query}` : "/field";
+}

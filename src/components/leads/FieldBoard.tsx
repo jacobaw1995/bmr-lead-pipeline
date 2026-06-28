@@ -29,6 +29,12 @@ import {
   parseStageDroppableId,
 } from "@/lib/leads/constants";
 import type { LeadStage, UserRole } from "@/types/database";
+import { SiteVisitCalendar } from "@/components/calendar/SiteVisitCalendar";
+import type { CalendarSiteVisit } from "@/lib/calendar/types";
+import {
+  buildFieldHref,
+  type FieldView,
+} from "@/lib/calendar/utils";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { AddLeadModal } from "./AddLeadModal";
 import { LeadCard } from "./LeadCard";
@@ -45,6 +51,10 @@ interface FieldBoardProps {
   noteSearchIndex?: LeadNoteSearchIndex;
   currentUserId: string;
   currentUserRole: UserRole;
+  fieldView?: FieldView;
+  calendarAppointments?: CalendarSiteVisit[];
+  calendarYear?: number;
+  calendarMonth?: number;
 }
 
 export function FieldBoard({
@@ -53,7 +63,12 @@ export function FieldBoard({
   noteSearchIndex = {},
   currentUserId,
   currentUserRole,
+  fieldView = "pipeline",
+  calendarAppointments = [],
+  calendarYear = new Date().getFullYear(),
+  calendarMonth = new Date().getMonth(),
 }: FieldBoardProps) {
+  const isCalendarView = fieldView === "calendar";
   const router = useRouter();
   const [leads, setLeads] = useState(initialLeads);
 
@@ -188,14 +203,47 @@ export function FieldBoard({
     >
       <div className="h-full flex flex-col">
         <div className="bg-field-dark/50 border-b border-field-line/15 px-4 py-2">
-          <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
             <Link
               href="/locker"
-              className="text-xs font-medium text-field-gold/80 hover:text-field-gold transition"
+              className="text-xs font-medium text-field-gold/80 hover:text-field-gold transition shrink-0"
             >
               ← Locker Room
             </Link>
-            <span className="text-[10px] uppercase tracking-wider text-field-cream/30">
+            <div
+              className="inline-flex rounded-lg border border-field-line/25 p-0.5 bg-field-dark/60"
+              role="tablist"
+              aria-label="Field view"
+            >
+              <Link
+                href={buildFieldHref({ lead: selectedLeadId })}
+                role="tab"
+                aria-selected={!isCalendarView}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition ${
+                  !isCalendarView
+                    ? "bg-field-turf/30 text-field-cream"
+                    : "text-field-cream/50 hover:text-field-cream"
+                }`}
+              >
+                Pipeline
+              </Link>
+              <Link
+                href={buildFieldHref({
+                  view: "calendar",
+                  lead: selectedLeadId,
+                })}
+                role="tab"
+                aria-selected={isCalendarView}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition ${
+                  isCalendarView
+                    ? "bg-field-turf/30 text-field-cream"
+                    : "text-field-cream/50 hover:text-field-cream"
+                }`}
+              >
+                📅 Calendar
+              </Link>
+            </div>
+            <span className="text-[10px] uppercase tracking-wider text-field-cream/30 shrink-0 hidden sm:inline">
               The Field
             </span>
           </div>
@@ -215,31 +263,45 @@ export function FieldBoard({
           </div>
         )}
 
-        <LeadSearchBar
-          leads={leads}
-          filters={searchFilters}
-          onFiltersChange={setSearchFilters}
-          filteredCount={filteredLeads.length}
-          isManager={isManager}
-        />
+        {!isCalendarView && (
+          <LeadSearchBar
+            leads={leads}
+            filters={searchFilters}
+            onFiltersChange={setSearchFilters}
+            filteredCount={filteredLeads.length}
+            isManager={isManager}
+          />
+        )}
 
-        {/* Lead Box */}
         <div className="bg-field-dark/40 border-b border-field-line/30 px-4 py-4">
           <div className="max-w-7xl mx-auto">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-field-gold">
-                  Lead Box
-                </h2>
-                <p className="text-xs text-field-cream/50 mt-0.5">
-                  {capturedLeads.length === 0
-                    ? "New leads land in the Lead Captured column below"
-                    : `${capturedLeads.length} in Lead Captured${
-                        unclaimedCaptured.length > 0
-                          ? ` · ${unclaimedCaptured.length} unclaimed`
-                          : ""
-                      }`}
-                </p>
+                {isCalendarView ? (
+                  <>
+                    <h2 className="text-sm font-semibold uppercase tracking-wider text-field-gold">
+                      Site Visit Calendar
+                    </h2>
+                    <p className="text-xs text-field-cream/50 mt-0.5">
+                      Past and upcoming inspections &amp; site surveys
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-sm font-semibold uppercase tracking-wider text-field-gold">
+                      Lead Box
+                    </h2>
+                    <p className="text-xs text-field-cream/50 mt-0.5">
+                      {capturedLeads.length === 0
+                        ? "New leads land in the Lead Captured column below"
+                        : `${capturedLeads.length} in Lead Captured${
+                            unclaimedCaptured.length > 0
+                              ? ` · ${unclaimedCaptured.length} unclaimed`
+                              : ""
+                          }`}
+                    </p>
+                  </>
+                )}
               </div>
               <button
                 onClick={() => setModalOpen(true)}
@@ -251,10 +313,18 @@ export function FieldBoard({
           </div>
         </div>
 
-        {/* The Field */}
         <div className="flex-1 field-pattern px-4 py-4 sm:py-6">
           <div className="max-w-7xl mx-auto">
-            {filteredLeads.length === 0 && filtersActive ? (
+            {isCalendarView ? (
+              <SiteVisitCalendar
+                appointments={calendarAppointments}
+                year={calendarYear}
+                month={calendarMonth}
+                currentUserId={currentUserId}
+                isManager={isManager}
+                contextLeadId={selectedLeadId}
+              />
+            ) : filteredLeads.length === 0 && filtersActive ? (
               <EmptyState
                 icon="🔍"
                 title="No leads match your filters"
