@@ -13,6 +13,7 @@ interface AppNavProps {
 const NAV_ITEMS = [
   { href: "/locker", label: "Locker Room", icon: "🚪" },
   { href: "/field", label: "The Field", icon: "🏟️" },
+  { href: "/calendar", label: "Calendar", icon: "📅" },
   { href: "/vault", label: "Lead Vault", icon: "🗄️" },
   { href: "/winners", label: "Winner's Circle", icon: "🏆" },
   { href: "/lost", label: "Lost Zone", icon: "📋" },
