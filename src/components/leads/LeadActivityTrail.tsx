@@ -4,10 +4,15 @@ import type { ActivityWithActor } from "@/lib/leads/types";
 
 interface LeadActivityTrailProps {
   activity: ActivityWithActor[];
+  ownerNames?: Record<string, string>;
   loading?: boolean;
 }
 
-export function LeadActivityTrail({ activity, loading }: LeadActivityTrailProps) {
+export function LeadActivityTrail({
+  activity,
+  ownerNames,
+  loading,
+}: LeadActivityTrailProps) {
   if (loading) {
     return (
       <div className="space-y-3">
@@ -34,7 +39,7 @@ export function LeadActivityTrail({ activity, loading }: LeadActivityTrailProps)
           className="rounded-lg border border-field-line/15 bg-field-turf/10 px-3 py-2.5"
         >
           <p className="text-sm text-field-cream/80 leading-snug">
-            {formatActivityDescription(entry)}
+            {formatActivityDescription(entry, ownerNames)}
           </p>
           <p className="text-[11px] text-field-cream/35 mt-1">
             {formatTimestamp(entry.created_at)}

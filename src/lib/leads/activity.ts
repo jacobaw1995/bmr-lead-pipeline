@@ -32,6 +32,21 @@ function formatStatus(value: string | null): string {
   return value.replace(/_/g, " ");
 }
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isOwnerId(value: string | null): value is string {
+  return Boolean(value && value !== "unclaimed" && UUID_RE.test(value));
+}
+
+function ownerLabel(
+  ownerId: string | null,
+  ownerNames?: Record<string, string>
+): string {
+  if (!ownerId || ownerId === "unclaimed") return "the pool";
+  return ownerNames?.[ownerId] ?? "another rep";
+}
+
 function parseAppointmentActivityValue(
   value: string,
   prefix: string
@@ -47,7 +62,10 @@ function parseAppointmentActivityValue(
   };
 }
 
-export function formatActivityDescription(activity: ActivityWithActor): string {
+export function formatActivityDescription(
+  activity: ActivityWithActor,
+  ownerNames?: Record<string, string>
+): string {
   const actor = activity.actor?.full_name ?? "Someone";
 
   switch (activity.action) {
@@ -60,14 +78,25 @@ export function formatActivityDescription(activity: ActivityWithActor): string {
       return `${actor} moved from ${formatStage(activity.from_value)} to ${formatStage(activity.to_value)}`;
     case "status_changed":
       return `${actor} changed status from ${formatStatus(activity.from_value)} to ${formatStatus(activity.to_value)}`;
-    case "reassigned":
-      if (activity.from_value === "unclaimed") {
-        return `${actor} claimed this lead`;
+    case "reassigned": {
+      const fromId = activity.from_value;
+      const toId = activity.to_value;
+      const actorId = activity.actor_id;
+
+      if (fromId === "unclaimed" && isOwnerId(toId)) {
+        if (toId === actorId) {
+          return `${actor} claimed this lead`;
+        }
+        return `${actor} assigned this lead to ${ownerLabel(toId, ownerNames)}`;
       }
-      if (activity.to_value === "unclaimed") {
+      if (toId === "unclaimed") {
         return `${actor} returned this lead to the pool`;
       }
+      if (isOwnerId(fromId) && isOwnerId(toId)) {
+        return `${actor} reassigned this lead from ${ownerLabel(fromId, ownerNames)} to ${ownerLabel(toId, ownerNames)}`;
+      }
       return `${actor} reassigned this lead`;
+    }
     case "value_set": {
       const amount = activity.to_value
         ? formatActivityCurrency(activity.to_value)

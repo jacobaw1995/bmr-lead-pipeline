@@ -22,4 +22,6 @@ export type ActivityWithActor = LeadActivity & {
 export interface LeadHistory {
   notes: NoteWithAuthor[];
   activity: ActivityWithActor[];
+  /** Resolved profile names for reassigned from/to owner IDs */
+  ownerNames: Record<string, string>;
 }

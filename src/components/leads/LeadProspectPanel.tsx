@@ -294,6 +294,7 @@ export function LeadProspectPanel({
           <div className="px-4 pb-4 max-h-[35vh] overflow-y-auto">
             <LeadActivityTrail
               activity={history?.activity ?? []}
+              ownerNames={history?.ownerNames}
               loading={loading}
             />
           </div>
@@ -329,6 +330,7 @@ export function LeadProspectPanel({
           </h3>
           <LeadActivityTrail
             activity={history?.activity ?? []}
+            ownerNames={history?.ownerNames}
             loading={loading}
           />
         </section>

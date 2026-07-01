@@ -67,9 +67,35 @@ export async function getLeadHistory(leadId: string): Promise<LeadHistory> {
       .order("created_at", { ascending: true }),
   ]);
 
+  const activity = (activityResult.data ?? []) as ActivityWithActor[];
+  const ownerIds = new Set<string>();
+
+  for (const entry of activity) {
+    if (entry.action !== "reassigned") continue;
+    if (entry.from_value && entry.from_value !== "unclaimed") {
+      ownerIds.add(entry.from_value);
+    }
+    if (entry.to_value && entry.to_value !== "unclaimed") {
+      ownerIds.add(entry.to_value);
+    }
+  }
+
+  let ownerNames: Record<string, string> = {};
+  if (ownerIds.size > 0) {
+    const { data: owners } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", Array.from(ownerIds));
+
+    ownerNames = Object.fromEntries(
+      (owners ?? []).map((owner) => [owner.id, owner.full_name])
+    );
+  }
+
   return {
     notes: (notesResult.data ?? []) as NoteWithAuthor[],
-    activity: (activityResult.data ?? []) as ActivityWithActor[],
+    activity,
+    ownerNames,
   };
 }
 
