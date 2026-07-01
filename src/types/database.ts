@@ -129,6 +129,7 @@ export interface LeadAppointment {
   scheduled_at: string;
   duration_minutes: number;
   status: AppointmentStatus;
+  title: string | null;
   notes: string | null;
   created_at: string;
   completed_at: string | null;

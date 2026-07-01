@@ -105,21 +105,49 @@ export function getActiveAppointment(
 
 export type SiteVisitAppointmentState = "scheduled" | "completed";
 
+export function getSiteVisitAppointments(
+  appointments: LeadAppointment[] | undefined
+): LeadAppointment[] {
+  if (!appointments?.length) return [];
+  return appointments
+    .filter((a) => isSiteVisitAppointmentType(a.appointment_type))
+    .sort(
+      (a, b) =>
+        new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
+    );
+}
+
+export function getScheduledSiteVisits(
+  appointments: LeadAppointment[] | undefined
+): LeadAppointment[] {
+  return getSiteVisitAppointments(appointments).filter(
+    (a) => a.status === "scheduled"
+  );
+}
+
+export function getNextScheduledSiteVisit(
+  appointments: LeadAppointment[] | undefined
+): LeadAppointment | null {
+  return getScheduledSiteVisits(appointments)[0] ?? null;
+}
+
+export function formatAppointmentTitle(
+  appointment: Pick<LeadAppointment, "title" | "appointment_type">
+): string {
+  const custom = appointment.title?.trim();
+  if (custom) return custom;
+  return APPOINTMENT_TYPE_LABELS[appointment.appointment_type];
+}
+
 export function getSiteVisitAppointment(
   appointments: LeadAppointment[] | undefined
 ): { appointment: LeadAppointment; state: SiteVisitAppointmentState } | null {
-  if (!appointments?.length) return null;
-
-  const siteVisits = appointments.filter((a) =>
-    isSiteVisitAppointmentType(a.appointment_type)
-  );
-
-  const scheduled = siteVisits.find((a) => a.status === "scheduled");
-  if (scheduled) {
-    return { appointment: scheduled, state: "scheduled" };
+  const nextScheduled = getNextScheduledSiteVisit(appointments);
+  if (nextScheduled) {
+    return { appointment: nextScheduled, state: "scheduled" };
   }
 
-  const completed = siteVisits
+  const completed = getSiteVisitAppointments(appointments)
     .filter((a) => a.status === "completed")
     .sort(
       (a, b) =>

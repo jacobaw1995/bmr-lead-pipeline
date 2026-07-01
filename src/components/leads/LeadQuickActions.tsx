@@ -77,8 +77,7 @@ export function LeadQuickActions({
   const showSchedule =
     canEdit &&
     lead.status === "active" &&
-    (view === "new_lead" || view === "site_visit") &&
-    !siteVisit;
+    (view === "new_lead" || view === "site_visit");
   const showEditQuote =
     canEdit &&
     lead.status === "active" &&
@@ -227,7 +226,7 @@ export function LeadQuickActions({
               onClick={() => setScheduleOpen(true)}
               className={buttonClass}
             >
-              Schedule
+              {siteVisit ? "Add visit" : "Schedule"}
             </button>
           )}
           {showEditQuote && (

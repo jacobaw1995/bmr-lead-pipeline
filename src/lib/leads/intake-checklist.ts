@@ -1,6 +1,7 @@
 import { formatServiceAddress } from "@/lib/leads/address";
 import {
   formatAppointmentDateTime,
+  getScheduledSiteVisits,
   getSiteVisitAppointment,
 } from "@/lib/leads/appointments";
 import { formatRoofTypes, hasRoofTypeValue } from "@/lib/leads/roof-types";
@@ -139,13 +140,17 @@ export function getIntakeItemDetail(
       return getMainIssue(checklist, notes);
     case "project_type":
       return lead.remodel_or_new_construction?.trim() || null;
-    case "site_visit_scheduled":
-      if (siteVisitAppt?.appointment?.scheduled_at) {
-        return formatAppointmentDateTime(siteVisitAppt.appointment.scheduled_at);
+    case "site_visit_scheduled": {
+      const upcoming = getScheduledSiteVisits(appointments);
+      if (upcoming.length > 1) {
+        return `${upcoming.length} visits scheduled — next ${formatAppointmentDateTime(upcoming[0].scheduled_at)}`;
+      }
+      if (upcoming[0]) {
+        return formatAppointmentDateTime(upcoming[0].scheduled_at);
       }
       if (siteVisitAppt?.state === "completed") return "Site visit completed";
-      if (siteVisitAppt?.state === "scheduled") return "Site visit scheduled";
       return null;
+    }
     default:
       return null;
   }

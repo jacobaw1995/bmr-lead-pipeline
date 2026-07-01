@@ -21,7 +21,7 @@ export async function getSiteVisitCalendarAppointments(
   const { data, error } = await supabase
     .from("lead_appointments")
     .select(
-      `id, lead_id, owner_id, appointment_type, scheduled_at, duration_minutes, status, notes,
+      `id, lead_id, owner_id, appointment_type, title, scheduled_at, duration_minutes, status, notes,
        owner:profiles!lead_appointments_owner_id_fkey(id, full_name),
        leads!inner(
          id, name, first_name, last_name, company_name,
@@ -62,6 +62,7 @@ export async function getSiteVisitCalendarAppointments(
         repId: row.owner_id as string,
         repName: owner?.full_name ?? "Unknown",
         appointmentType: row.appointment_type as CalendarSiteVisit["appointmentType"],
+        title: (row.title as string | null) ?? null,
         scheduledAt,
         durationMinutes: row.duration_minutes as number,
         status,

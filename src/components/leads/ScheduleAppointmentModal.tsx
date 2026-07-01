@@ -28,12 +28,16 @@ export function ScheduleAppointmentModal({
   onScheduled,
 }: ScheduleAppointmentModalProps) {
   const [datetime, setDatetime] = useState(defaultScheduleDateTime);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
       setDatetime(defaultScheduleDateTime());
+      setTitle("");
+      setDescription("");
       setError(null);
     }
   }, [open, appointmentType]);
@@ -62,7 +66,11 @@ export function ScheduleAppointmentModal({
       leadId,
       appointmentType,
       new Date(datetime).toISOString(),
-      DEFAULT_APPOINTMENT_DURATION
+      DEFAULT_APPOINTMENT_DURATION,
+      {
+        title: title.trim() || undefined,
+        description: description.trim() || undefined,
+      }
     );
 
     if (!result.success) {
@@ -87,7 +95,7 @@ export function ScheduleAppointmentModal({
         onClick={onClose}
       />
 
-      <div className="relative w-full sm:max-w-sm rounded-t-2xl sm:rounded-xl border border-field-line/30 bg-field-dark shadow-xl max-h-[90vh] overflow-y-auto safe-area-bottom">
+      <div className="relative w-full sm:max-w-md rounded-t-2xl sm:rounded-xl border border-field-line/30 bg-field-dark shadow-xl max-h-[90vh] overflow-y-auto safe-area-bottom">
         <div className="sm:hidden flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 rounded-full bg-field-line/30" />
         </div>
@@ -97,8 +105,8 @@ export function ScheduleAppointmentModal({
             Schedule {label}
           </h3>
           <p className="text-xs text-field-cream/50 mt-0.5">
-            {DEFAULT_APPOINTMENT_DURATION}-minute block — double-booking is
-            blocked automatically.
+            Add another visit anytime — {DEFAULT_APPOINTMENT_DURATION}-minute
+            blocks. Double-booking on your calendar is still blocked.
           </p>
         </div>
 
@@ -108,6 +116,35 @@ export function ScheduleAppointmentModal({
               {error}
             </div>
           )}
+
+          <div>
+            <label className="block text-xs font-medium text-field-cream/60 mb-1.5">
+              Title
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={`e.g. Initial ${label.toLowerCase()}, follow-up measure`}
+              className="w-full min-h-[44px] rounded-lg border border-field-line/30 bg-field-turf/10 px-3 text-sm text-field-cream placeholder:text-field-cream/30 focus:outline-none focus:ring-2 focus:ring-field-gold/40"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-field-cream/60 mb-1.5">
+              Description
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What to cover, access notes, who will be on site…"
+              rows={3}
+              className="w-full rounded-lg border border-field-line/30 bg-field-turf/10 px-3 py-2 text-sm text-field-cream placeholder:text-field-cream/30 focus:outline-none focus:ring-2 focus:ring-field-gold/40 resize-none"
+            />
+            <p className="text-[10px] text-field-cream/35 mt-1">
+              Saved to the activity log with this appointment.
+            </p>
+          </div>
 
           <ScheduleDateTimePicker value={datetime} onChange={setDatetime} />
 

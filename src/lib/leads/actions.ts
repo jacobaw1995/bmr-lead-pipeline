@@ -885,7 +885,8 @@ export async function scheduleAppointment(
   leadId: string,
   appointmentType: AppointmentType,
   scheduledAt: string,
-  durationMinutes: number = DEFAULT_APPOINTMENT_DURATION
+  durationMinutes: number = DEFAULT_APPOINTMENT_DURATION,
+  options?: { title?: string; description?: string }
 ): Promise<{ success: true } | { success: false; error: string }> {
   const scheduledDate = new Date(scheduledAt);
   if (isNaN(scheduledDate.getTime())) {
@@ -933,20 +934,8 @@ export async function scheduleAppointment(
     };
   }
 
-  const typesToCancel =
-    appointmentType === "site_survey" || appointmentType === "inspection"
-      ? ["site_survey", "inspection"]
-      : [appointmentType];
-
-  await supabase
-    .from("lead_appointments")
-    .update({
-      status: "cancelled",
-      cancelled_at: new Date().toISOString(),
-    })
-    .eq("lead_id", leadId)
-    .in("appointment_type", typesToCancel)
-    .eq("status", "scheduled");
+  const title = options?.title?.trim() || null;
+  const description = options?.description?.trim() || null;
 
   const { error: insertError } = await supabase.from("lead_appointments").insert({
     lead_id: leadId,
@@ -955,19 +944,25 @@ export async function scheduleAppointment(
     scheduled_at: scheduledDate.toISOString(),
     duration_minutes: durationMinutes,
     status: "scheduled",
+    title,
+    notes: description,
   });
 
   if (insertError) {
     return { success: false, error: insertError.message };
   }
 
-  const label = APPOINTMENT_TYPE_LABELS[appointmentType];
+  const label = title ?? APPOINTMENT_TYPE_LABELS[appointmentType];
+  const activityTo = description
+    ? `scheduled:${scheduledDate.toISOString()}::${description}`
+    : `scheduled:${scheduledDate.toISOString()}`;
+
   await supabase.from("lead_activity").insert({
     lead_id: leadId,
     actor_id: user.id,
     action: "edited",
     from_value: label,
-    to_value: `scheduled:${scheduledDate.toISOString()}`,
+    to_value: activityTo,
   });
 
   await supabase
@@ -1164,7 +1159,9 @@ export async function completeAppointment(
 
   const { data: appointment, error: fetchError } = await supabase
     .from("lead_appointments")
-    .select("id, lead_id, appointment_type, status, scheduled_at")
+    .select(
+      "id, lead_id, appointment_type, status, scheduled_at, title, notes"
+    )
     .eq("id", appointmentId)
     .single();
 
@@ -1201,13 +1198,19 @@ export async function completeAppointment(
   await supabase.from("leads").update(leadUpdate).eq("id", appointment.lead_id);
 
   const aptType = appointment.appointment_type as AppointmentType;
-  const label = APPOINTMENT_TYPE_LABELS[aptType];
+  const label =
+    (appointment.title as string | null)?.trim() ||
+    APPOINTMENT_TYPE_LABELS[aptType];
+  const activityTo = appointment.notes
+    ? `completed:${appointment.scheduled_at}::${appointment.notes}`
+    : `completed:${appointment.scheduled_at}`;
+
   await supabase.from("lead_activity").insert({
     lead_id: appointment.lead_id,
     actor_id: user.id,
     action: "edited",
     from_value: label,
-    to_value: `completed:${appointment.scheduled_at}`,
+    to_value: activityTo,
   });
 
   await maybeAutoBuildScopeForLead(supabase, appointment.lead_id, user.id);
@@ -1230,7 +1233,9 @@ export async function cancelAppointment(
 
   const { data: appointment, error: fetchError } = await supabase
     .from("lead_appointments")
-    .select("id, lead_id, appointment_type, status, scheduled_at")
+    .select(
+      "id, lead_id, appointment_type, status, scheduled_at, title, notes"
+    )
     .eq("id", appointmentId)
     .single();
 
@@ -1257,13 +1262,19 @@ export async function cancelAppointment(
   }
 
   const cancelType = appointment.appointment_type as AppointmentType;
-  const label = APPOINTMENT_TYPE_LABELS[cancelType];
+  const label =
+    (appointment.title as string | null)?.trim() ||
+    APPOINTMENT_TYPE_LABELS[cancelType];
+  const activityTo = appointment.notes
+    ? `cancelled:${appointment.scheduled_at}::${appointment.notes}`
+    : `cancelled:${appointment.scheduled_at}`;
+
   await supabase.from("lead_activity").insert({
     lead_id: appointment.lead_id,
     actor_id: user.id,
     action: "edited",
     from_value: label,
-    to_value: `cancelled:${appointment.scheduled_at}`,
+    to_value: activityTo,
   });
 
   revalidateLeadPaths();

@@ -32,6 +32,21 @@ function formatStatus(value: string | null): string {
   return value.replace(/_/g, " ");
 }
 
+function parseAppointmentActivityValue(
+  value: string,
+  prefix: string
+): { when: string; detail: string | null } {
+  const rest = value.slice(prefix.length);
+  const splitAt = rest.indexOf("::");
+  if (splitAt === -1) {
+    return { when: rest, detail: null };
+  }
+  return {
+    when: rest.slice(0, splitAt),
+    detail: rest.slice(splitAt + 2).trim() || null,
+  };
+}
+
 export function formatActivityDescription(activity: ActivityWithActor): string {
   const actor = activity.actor?.full_name ?? "Someone";
 
@@ -80,16 +95,28 @@ export function formatActivityDescription(activity: ActivityWithActor): string {
         return `${actor} cleared ${label}`;
       }
       if (activity.to_value?.startsWith("scheduled:")) {
-        const when = activity.to_value.slice("scheduled:".length);
-        return `${actor} scheduled ${label} for ${formatAppointmentDateTime(when)}`;
+        const { when, detail } = parseAppointmentActivityValue(
+          activity.to_value,
+          "scheduled:"
+        );
+        const base = `${actor} scheduled ${label} for ${formatAppointmentDateTime(when)}`;
+        return detail ? `${base} — ${detail}` : base;
       }
       if (activity.to_value?.startsWith("completed:")) {
-        const when = activity.to_value.slice("completed:".length);
-        return `${actor} completed ${label} (${formatAppointmentDateTime(when)})`;
+        const { when, detail } = parseAppointmentActivityValue(
+          activity.to_value,
+          "completed:"
+        );
+        const base = `${actor} completed ${label} (${formatAppointmentDateTime(when)})`;
+        return detail ? `${base} — ${detail}` : base;
       }
       if (activity.to_value?.startsWith("cancelled:")) {
-        const when = activity.to_value.slice("cancelled:".length);
-        return `${actor} cancelled ${label} (${formatAppointmentDateTime(when)})`;
+        const { when, detail } = parseAppointmentActivityValue(
+          activity.to_value,
+          "cancelled:"
+        );
+        const base = `${actor} cancelled ${label} (${formatAppointmentDateTime(when)})`;
+        return detail ? `${base} — ${detail}` : base;
       }
       return `${actor} edited lead details`;
     }

@@ -10,7 +10,8 @@ import {
 import {
   SITE_VISIT_APPOINTMENT_TYPE,
   formatAppointmentDateTime,
-  getSiteVisitAppointment,
+  formatAppointmentTitle,
+  getSiteVisitAppointments,
 } from "@/lib/leads/appointments";
 import {
   SCHEDULABLE_STEPS,
@@ -32,7 +33,8 @@ export function LeadMilestones({ lead, canEdit }: LeadMilestonesProps) {
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
-  const siteVisit = getSiteVisitAppointment(appointments);
+  const siteVisits = getSiteVisitAppointments(appointments);
+  const scheduledVisits = siteVisits.filter((a) => a.status === "scheduled");
   const progress = getMilestoneProgress(lead, appointments);
 
   async function handleToggle(key: MilestoneKey, currentlyDone: boolean) {
@@ -114,95 +116,116 @@ export function LeadMilestones({ lead, canEdit }: LeadMilestonesProps) {
           {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
 
           <div className="space-y-2">
-            {SCHEDULABLE_STEPS.map((step) => {
-              const isLoading =
-                loading === step.key ||
-                (siteVisit && loading === siteVisit.appointment.id);
-
-              return (
-                <div
-                  key={step.key}
-                  className={`rounded-lg border p-3 ${
-                    siteVisit?.state === "scheduled"
-                      ? "border-field-gold/50 bg-field-gold/10"
-                      : siteVisit?.state === "completed"
-                        ? "border-field-sage/40 bg-field-sage/10"
-                        : "border-field-line/20 bg-field-dark/30"
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="text-xl shrink-0" aria-hidden>
-                      {step.icon}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-field-cream">
-                        {step.label}
-                      </p>
-                      {siteVisit?.state === "scheduled" ? (
-                        <p className="text-xs text-field-gold mt-0.5">
-                          {formatAppointmentDateTime(
-                            siteVisit.appointment.scheduled_at
-                          )}
+            {SCHEDULABLE_STEPS.map((step) => (
+              <div
+                key={step.key}
+                className={`rounded-lg border p-3 ${
+                  scheduledVisits.length > 0
+                    ? "border-field-gold/50 bg-field-gold/10"
+                    : siteVisits.some((a) => a.status === "completed")
+                      ? "border-field-sage/40 bg-field-sage/10"
+                      : "border-field-line/20 bg-field-dark/30"
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <span className="text-xl shrink-0" aria-hidden>
+                    {step.icon}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-field-cream">
+                          {step.label}
                         </p>
-                      ) : siteVisit?.state === "completed" ? (
-                        <p className="text-xs text-field-sage mt-0.5">
-                          Completed ·{" "}
-                          {formatAppointmentDateTime(
-                            siteVisit.appointment.scheduled_at
-                          )}
-                        </p>
-                      ) : (
                         <p className="text-xs text-field-cream/40 mt-0.5">
-                          Not scheduled yet
+                          {siteVisits.length === 0
+                            ? "No visits scheduled yet"
+                            : `${scheduledVisits.length} upcoming · ${siteVisits.filter((a) => a.status === "completed").length} completed`}
                         </p>
-                      )}
+                      </div>
                       {canEdit && (
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          <button
-                            type="button"
-                            disabled={!!isLoading}
-                            onClick={() => setScheduleOpen(true)}
-                            className="text-xs font-medium text-field-gold hover:text-field-cream transition disabled:opacity-50"
-                          >
-                            {siteVisit?.state === "scheduled"
-                              ? "Reschedule"
-                              : "Schedule"}
-                          </button>
-                          {siteVisit?.state === "scheduled" && (
-                            <>
-                              <button
-                                type="button"
-                                disabled={!!isLoading}
-                                onClick={() =>
-                                  handleCompleteAppointment(
-                                    siteVisit.appointment.id
-                                  )
-                                }
-                                className="text-xs font-medium text-field-cream/70 hover:text-field-cream transition disabled:opacity-50"
-                              >
-                                Mark complete
-                              </button>
-                              <button
-                                type="button"
-                                disabled={!!isLoading}
-                                onClick={() =>
-                                  handleCancelAppointment(
-                                    siteVisit.appointment.id
-                                  )
-                                }
-                                className="text-xs font-medium text-field-cream/40 hover:text-field-sage transition disabled:opacity-50"
-                              >
-                                Cancel
-                              </button>
-                            </>
-                          )}
-                        </div>
+                        <button
+                          type="button"
+                          disabled={loading === step.key}
+                          onClick={() => setScheduleOpen(true)}
+                          className="shrink-0 text-xs font-medium text-field-gold hover:text-field-cream transition disabled:opacity-50"
+                        >
+                          + Add visit
+                        </button>
                       )}
                     </div>
+
+                    {siteVisits.length > 0 && (
+                      <ul className="mt-3 space-y-2">
+                        {siteVisits.map((visit) => {
+                          const isLoading = loading === visit.id;
+                          const isScheduled = visit.status === "scheduled";
+                          const isCompleted = visit.status === "completed";
+
+                          return (
+                            <li
+                              key={visit.id}
+                              className={`rounded-lg border px-3 py-2 ${
+                                isScheduled
+                                  ? "border-field-gold/30 bg-field-dark/40"
+                                  : isCompleted
+                                    ? "border-field-sage/25 bg-field-dark/30"
+                                    : "border-field-line/15 bg-field-dark/20"
+                              }`}
+                            >
+                              <p className="text-sm font-medium text-field-cream truncate">
+                                {formatAppointmentTitle(visit)}
+                              </p>
+                              <p
+                                className={`text-xs mt-0.5 ${
+                                  isScheduled
+                                    ? "text-field-gold"
+                                    : isCompleted
+                                      ? "text-field-sage"
+                                      : "text-field-cream/45"
+                                }`}
+                              >
+                                {isCompleted ? "Completed · " : ""}
+                                {formatAppointmentDateTime(visit.scheduled_at)}
+                              </p>
+                              {visit.notes && (
+                                <p className="text-xs text-field-cream/45 mt-1 line-clamp-2">
+                                  {visit.notes}
+                                </p>
+                              )}
+                              {canEdit && isScheduled && (
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                  <button
+                                    type="button"
+                                    disabled={!!isLoading}
+                                    onClick={() =>
+                                      handleCompleteAppointment(visit.id)
+                                    }
+                                    className="text-xs font-medium text-field-cream/70 hover:text-field-cream transition disabled:opacity-50"
+                                  >
+                                    Mark complete
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={!!isLoading}
+                                    onClick={() =>
+                                      handleCancelAppointment(visit.id)
+                                    }
+                                    className="text-xs font-medium text-field-cream/40 hover:text-field-sage transition disabled:opacity-50"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
 
             <div className="grid grid-cols-3 gap-2 pt-1">
               {TOGGLE_MILESTONES.map((milestone) => {

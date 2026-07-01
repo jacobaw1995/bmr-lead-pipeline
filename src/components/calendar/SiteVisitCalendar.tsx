@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import {
   APPOINTMENT_TYPE_LABELS,
   formatAppointmentDateTime,
+  formatAppointmentTitle,
 } from "@/lib/leads/appointments";
 import { phoneTelHref } from "@/lib/leads/phone";
 import type { CalendarRepFilter, CalendarSiteVisit } from "@/lib/calendar/types";
@@ -344,6 +345,14 @@ function AppointmentRow({
           <p className="text-sm font-semibold text-field-cream truncate">
             {apt.leadName}
           </p>
+          {apt.title && (
+            <p className="text-xs text-field-gold/90 mt-0.5 truncate">
+              {formatAppointmentTitle({
+                title: apt.title,
+                appointment_type: apt.appointmentType,
+              })}
+            </p>
+          )}
           <p className="text-xs text-field-cream/50 mt-0.5">
             {APPOINTMENT_TYPE_LABELS[apt.appointmentType]} ·{" "}
             {formatAppointmentDateTime(apt.scheduledAt)}

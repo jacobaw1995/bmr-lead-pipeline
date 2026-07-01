@@ -9,6 +9,7 @@ export interface CalendarSiteVisit {
   repId: string;
   repName: string;
   appointmentType: AppointmentType;
+  title: string | null;
   scheduledAt: string;
   durationMinutes: number;
   status: AppointmentStatus;
