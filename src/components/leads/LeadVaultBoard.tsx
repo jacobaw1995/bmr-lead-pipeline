@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { STAGE_LABELS, getSourceDisplayLabel } from "@/lib/leads/constants";
 import { formatCurrency, formatTimestamp } from "@/lib/leads/format";
 import { formatLeadDisplayName } from "@/lib/leads/profile";
+import { getBatchAssignableIds } from "@/lib/leads/batch-edit";
 import {
   DEFAULT_LEAD_SEARCH_FILTERS,
   filterLeads,
@@ -14,7 +15,8 @@ import {
 import type { LeadWithOwner } from "@/lib/leads/types";
 import type { UserRole } from "@/types/database";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { BulkOwnerAssignBar } from "./BulkOwnerAssignBar";
+import { BatchEditToolbar } from "./BatchEditToolbar";
+import { LeadBatchCheckbox } from "./LeadBatchCheckbox";
 import { LeadDetailPanel } from "./LeadDetailPanel";
 import { LeadSearchBar } from "./LeadSearchBar";
 
@@ -47,6 +49,8 @@ export function LeadVaultBoard({
   const [searchFilters, setSearchFilters] = useState<LeadSearchFilters>(
     DEFAULT_LEAD_SEARCH_FILTERS
   );
+  const [batchEditActive, setBatchEditActive] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const isManager = currentUserRole === "manager";
   const filtersActive = hasActiveFilters(searchFilters);
@@ -54,6 +58,11 @@ export function LeadVaultBoard({
   const filteredLeads = useMemo(
     () => filterLeads(leads, searchFilters, currentUserId, noteSearchIndex),
     [leads, searchFilters, currentUserId, noteSearchIndex]
+  );
+
+  const assignableFilteredIds = useMemo(
+    () => getBatchAssignableIds(filteredLeads),
+    [filteredLeads]
   );
 
   const selectedLead = useMemo(
@@ -70,25 +79,56 @@ export function LeadVaultBoard({
     [leads]
   );
 
+  const allFilteredSelected =
+    assignableFilteredIds.length > 0 &&
+    assignableFilteredIds.every((id) => selectedIds.has(id));
+
+  const toggleBatchEdit = useCallback(() => {
+    setBatchEditActive((active) => {
+      if (active) setSelectedIds(new Set());
+      return !active;
+    });
+  }, []);
+
+  const exitBatchEdit = useCallback(() => {
+    setBatchEditActive(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const toggleSelect = useCallback((leadId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(leadId)) next.delete(leadId);
+      else next.add(leadId);
+      return next;
+    });
+  }, []);
+
+  const selectAllFiltered = useCallback(() => {
+    setSelectedIds(new Set(assignableFilteredIds));
+  }, [assignableFilteredIds]);
+
+  const toggleSelectAllFiltered = useCallback(() => {
+    if (allFilteredSelected) {
+      setSelectedIds(new Set());
+    } else {
+      selectAllFiltered();
+    }
+  }, [allFilteredSelected, selectAllFiltered]);
+
   return (
     <>
-      <div className="mb-4 space-y-3">
-        <div className="rounded-xl border border-field-line/20 overflow-hidden">
-          <LeadSearchBar
-            leads={leads}
-            filters={searchFilters}
-            onFiltersChange={setSearchFilters}
-            filteredCount={filteredLeads.length}
-            isManager={isManager}
-            showStatusFilter
-          />
-        </div>
-        {isManager && (
-          <BulkOwnerAssignBar
-            filteredLeads={filteredLeads}
-            filters={searchFilters}
-          />
-        )}
+      <div className="mb-4 rounded-xl border border-field-line/20 overflow-hidden">
+        <LeadSearchBar
+          leads={leads}
+          filters={searchFilters}
+          onFiltersChange={setSearchFilters}
+          filteredCount={filteredLeads.length}
+          isManager={isManager}
+          showStatusFilter
+          batchEditActive={batchEditActive}
+          onBatchEditToggle={isManager ? toggleBatchEdit : undefined}
+        />
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2 text-[10px] uppercase tracking-wide text-field-cream/45">
@@ -130,8 +170,25 @@ export function LeadVaultBoard({
           }
         />
       ) : (
-        <div className="rounded-xl border border-field-line/20 overflow-hidden">
-          <div className="hidden sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(0,0.7fr)_minmax(0,0.8fr)_minmax(0,0.7fr)_minmax(0,0.6fr)] gap-3 px-4 py-2.5 bg-field-dark/50 border-b border-field-line/15 text-[10px] uppercase tracking-wider text-field-cream/40">
+        <div
+          className={`rounded-xl border border-field-line/20 overflow-hidden ${
+            batchEditActive ? "pb-24" : ""
+          }`}
+        >
+          <div
+            className={`hidden sm:grid gap-3 px-4 py-2.5 bg-field-dark/50 border-b border-field-line/15 text-[10px] uppercase tracking-wider text-field-cream/40 ${
+              batchEditActive
+                ? "sm:grid-cols-[auto_minmax(0,1.4fr)_minmax(0,0.7fr)_minmax(0,0.8fr)_minmax(0,0.7fr)_minmax(0,0.6fr)]"
+                : "sm:grid-cols-[minmax(0,1.4fr)_minmax(0,0.7fr)_minmax(0,0.8fr)_minmax(0,0.7fr)_minmax(0,0.6fr)]"
+            }`}
+          >
+            {batchEditActive && (
+              <LeadBatchCheckbox
+                checked={allFilteredSelected}
+                onChange={toggleSelectAllFiltered}
+                label="Select all filtered active leads"
+              />
+            )}
             <span>Lead</span>
             <span>Status</span>
             <span>Stage</span>
@@ -139,51 +196,79 @@ export function LeadVaultBoard({
             <span className="text-right">Updated</span>
           </div>
           <ul className="divide-y divide-field-line/10">
-            {filteredLeads.map((lead) => (
-              <li key={lead.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedLeadId(lead.id)}
-                  className="w-full text-left px-4 py-3 hover:bg-field-turf/10 transition"
-                >
-                  <div className="sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(0,0.7fr)_minmax(0,0.8fr)_minmax(0,0.7fr)_minmax(0,0.6fr)] sm:gap-3 sm:items-center">
-                    <div className="min-w-0">
-                      <p className="font-semibold text-field-cream truncate">
-                        {formatLeadDisplayName(lead)}
-                      </p>
-                      <p className="text-[11px] text-field-cream/45 truncate mt-0.5">
-                        {getSourceDisplayLabel(lead.source, lead.referral_name)}
-                        {lead.value != null && lead.status !== "active" && (
-                          <span className="text-field-gold ml-2">
-                            {formatCurrency(lead.value)}
+            {filteredLeads.map((lead) => {
+              const assignable = lead.status === "active";
+              const checked = selectedIds.has(lead.id);
+
+              return (
+                <li key={lead.id}>
+                  <div className="flex items-start gap-3 px-4 py-3 hover:bg-field-turf/10 transition">
+                    {batchEditActive && (
+                      <div className="pt-1 shrink-0">
+                        <LeadBatchCheckbox
+                          checked={checked}
+                          disabled={!assignable}
+                          onChange={() => toggleSelect(lead.id)}
+                          label={`Select ${formatLeadDisplayName(lead)}`}
+                        />
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedLeadId(lead.id)}
+                      className="flex-1 min-w-0 text-left"
+                    >
+                      <div className="sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(0,0.7fr)_minmax(0,0.8fr)_minmax(0,0.7fr)_minmax(0,0.6fr)] sm:gap-3 sm:items-center">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-field-cream truncate">
+                            {formatLeadDisplayName(lead)}
+                          </p>
+                          <p className="text-[11px] text-field-cream/45 truncate mt-0.5">
+                            {getSourceDisplayLabel(lead.source, lead.referral_name)}
+                            {lead.value != null && lead.status !== "active" && (
+                              <span className="text-field-gold ml-2">
+                                {formatCurrency(lead.value)}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                        <div className="mt-2 sm:mt-0">
+                          <span
+                            className={`inline-flex text-[10px] font-semibold uppercase tracking-wide rounded-full border px-2 py-0.5 ${STATUS_STYLES[lead.status]}`}
+                          >
+                            {STATUS_LABELS[lead.status]}
                           </span>
-                        )}
-                      </p>
-                    </div>
-                    <div className="mt-2 sm:mt-0">
-                      <span
-                        className={`inline-flex text-[10px] font-semibold uppercase tracking-wide rounded-full border px-2 py-0.5 ${STATUS_STYLES[lead.status]}`}
-                      >
-                        {STATUS_LABELS[lead.status]}
-                      </span>
-                    </div>
-                    <p className="text-xs text-field-cream/60 mt-1 sm:mt-0">
-                      {STAGE_LABELS[lead.stage]}
-                    </p>
-                    <p className="text-xs text-field-cream/55 mt-1 sm:mt-0 truncate">
-                      {lead.owner_id
-                        ? lead.owner?.full_name ?? "Unknown"
-                        : "Unclaimed"}
-                    </p>
-                    <p className="text-[11px] text-field-cream/40 mt-1 sm:mt-0 sm:text-right tabular-nums">
-                      {formatTimestamp(lead.updated_at)}
-                    </p>
+                        </div>
+                        <p className="text-xs text-field-cream/60 mt-1 sm:mt-0">
+                          {STAGE_LABELS[lead.stage]}
+                        </p>
+                        <p className="text-xs text-field-cream/55 mt-1 sm:mt-0 truncate">
+                          {lead.owner_id
+                            ? lead.owner?.full_name ?? "Unknown"
+                            : "Unclaimed"}
+                        </p>
+                        <p className="text-[11px] text-field-cream/40 mt-1 sm:mt-0 sm:text-right tabular-nums">
+                          {formatTimestamp(lead.updated_at)}
+                        </p>
+                      </div>
+                    </button>
                   </div>
-                </button>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         </div>
+      )}
+
+      {batchEditActive && (
+        <BatchEditToolbar
+          selectedIds={Array.from(selectedIds)}
+          filteredLeads={filteredLeads}
+          filters={searchFilters}
+          onSelectAllFiltered={selectAllFiltered}
+          onClearSelection={() => setSelectedIds(new Set())}
+          onExit={exitBatchEdit}
+        />
       )}
 
       <LeadDetailPanel

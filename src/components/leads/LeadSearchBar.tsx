@@ -19,6 +19,8 @@ interface LeadSearchBarProps {
   filteredCount: number;
   isManager: boolean;
   showStatusFilter?: boolean;
+  batchEditActive?: boolean;
+  onBatchEditToggle?: () => void;
 }
 
 const selectClass =
@@ -49,6 +51,8 @@ export function LeadSearchBar({
   filteredCount,
   isManager,
   showStatusFilter = false,
+  batchEditActive = false,
+  onBatchEditToggle,
 }: LeadSearchBarProps) {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -260,6 +264,20 @@ export function LeadSearchBar({
               className="shrink-0 h-9 px-2.5 rounded-md text-xs text-field-cream/50 hover:text-field-cream transition"
             >
               Clear
+            </button>
+          )}
+
+          {isManager && onBatchEditToggle && (
+            <button
+              type="button"
+              onClick={onBatchEditToggle}
+              className={`shrink-0 h-9 px-2.5 rounded-md text-xs font-medium transition ${
+                batchEditActive
+                  ? "bg-field-gold/15 text-field-gold border border-field-gold/40"
+                  : "text-field-cream/50 hover:text-field-cream border border-transparent"
+              }`}
+            >
+              {batchEditActive ? "Batch edit on" : "Batch edit"}
             </button>
           )}
 

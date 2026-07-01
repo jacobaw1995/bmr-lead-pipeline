@@ -35,8 +35,9 @@ import {
   buildFieldHref,
   type FieldView,
 } from "@/lib/calendar/utils";
+import { getBatchAssignableIds } from "@/lib/leads/batch-edit";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { BulkOwnerAssignBar } from "./BulkOwnerAssignBar";
+import { BatchEditToolbar } from "./BatchEditToolbar";
 import { AddLeadModal } from "./AddLeadModal";
 import { LeadCard } from "./LeadCard";
 import {
@@ -92,6 +93,8 @@ export function FieldBoard({
   const [searchFilters, setSearchFilters] = useState<LeadSearchFilters>(
     DEFAULT_LEAD_SEARCH_FILTERS
   );
+  const [batchEditActive, setBatchEditActive] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const draftApiRef = useRef<LeadDetailPanelDraftApi | null>(null);
 
   const isManager = currentUserRole === "manager";
@@ -102,6 +105,36 @@ export function FieldBoard({
   );
 
   const filtersActive = hasActiveFilters(searchFilters);
+
+  const assignableFilteredIds = useMemo(
+    () => getBatchAssignableIds(filteredLeads),
+    [filteredLeads]
+  );
+
+  const toggleBatchEdit = useCallback(() => {
+    setBatchEditActive((active) => {
+      if (active) setSelectedIds(new Set());
+      return !active;
+    });
+  }, []);
+
+  const exitBatchEdit = useCallback(() => {
+    setBatchEditActive(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const toggleBatchSelect = useCallback((leadId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(leadId)) next.delete(leadId);
+      else next.add(leadId);
+      return next;
+    });
+  }, []);
+
+  const selectAllFiltered = useCallback(() => {
+    setSelectedIds(new Set(assignableFilteredIds));
+  }, [assignableFilteredIds]);
 
   const grouped = useMemo(
     () => groupLeadsByStage(filteredLeads),
@@ -265,25 +298,15 @@ export function FieldBoard({
         )}
 
         {!isCalendarView && (
-          <>
-            <LeadSearchBar
-              leads={leads}
-              filters={searchFilters}
-              onFiltersChange={setSearchFilters}
-              filteredCount={filteredLeads.length}
-              isManager={isManager}
-            />
-            {isManager && (
-              <div className="px-4 py-2 border-b border-field-line/15 bg-field-dark/30">
-                <div className="max-w-7xl mx-auto">
-                  <BulkOwnerAssignBar
-                    filteredLeads={filteredLeads}
-                    filters={searchFilters}
-                  />
-                </div>
-              </div>
-            )}
-          </>
+          <LeadSearchBar
+            leads={leads}
+            filters={searchFilters}
+            onFiltersChange={setSearchFilters}
+            filteredCount={filteredLeads.length}
+            isManager={isManager}
+            batchEditActive={batchEditActive}
+            onBatchEditToggle={isManager ? toggleBatchEdit : undefined}
+          />
         )}
 
         <div className="bg-field-dark/40 border-b border-field-line/30 px-4 py-4">
@@ -326,7 +349,11 @@ export function FieldBoard({
           </div>
         </div>
 
-        <div className="flex-1 field-pattern px-4 py-4 sm:py-6">
+        <div
+          className={`flex-1 field-pattern px-4 py-4 sm:py-6 ${
+            batchEditActive && !isCalendarView ? "pb-24" : ""
+          }`}
+        >
           <div className="max-w-7xl mx-auto">
             {isCalendarView ? (
               <SiteVisitCalendar
@@ -371,6 +398,9 @@ export function FieldBoard({
                         onBlocked={showBlocked}
                         onOpenDetail={handleOpenDetail}
                         activeDragId={activeDragId}
+                        batchEditActive={batchEditActive}
+                        selectedIds={selectedIds}
+                        onToggleBatchSelect={toggleBatchSelect}
                       />
                     ))}
                   </div>
@@ -398,6 +428,17 @@ export function FieldBoard({
           router.refresh();
         }}
       />
+
+      {batchEditActive && !isCalendarView && (
+        <BatchEditToolbar
+          selectedIds={Array.from(selectedIds)}
+          filteredLeads={filteredLeads}
+          filters={searchFilters}
+          onSelectAllFiltered={selectAllFiltered}
+          onClearSelection={() => setSelectedIds(new Set())}
+          onExit={exitBatchEdit}
+        />
+      )}
 
       <LeadDetailPanel
         lead={selectedLead}

@@ -6,6 +6,7 @@ import type { LeadWithOwner } from "@/lib/leads/types";
 import { canEditLead } from "@/lib/leads/permissions";
 import { leadDraggableId } from "@/lib/leads/constants";
 import type { UserRole } from "@/types/database";
+import { LeadBatchCheckbox } from "./LeadBatchCheckbox";
 import { LeadCard } from "./LeadCard";
 
 interface DraggableLeadCardProps {
@@ -15,6 +16,9 @@ interface DraggableLeadCardProps {
   onBlocked: (message: string) => void;
   onOpenDetail: (lead: LeadWithOwner) => void;
   isDragging?: boolean;
+  batchEditActive?: boolean;
+  batchSelected?: boolean;
+  onToggleBatchSelect?: () => void;
 }
 
 export function DraggableLeadCard({
@@ -24,14 +28,18 @@ export function DraggableLeadCard({
   onBlocked,
   onOpenDetail,
   isDragging = false,
+  batchEditActive = false,
+  batchSelected = false,
+  onToggleBatchSelect,
 }: DraggableLeadCardProps) {
   const editable = canEditLead(lead, currentUserId, currentUserRole);
+  const dragEnabled = editable && !batchEditActive;
 
   const { attributes, listeners, setNodeRef, transform, isDragging: selfDragging } =
     useDraggable({
       id: leadDraggableId(lead.id),
       data: { lead, editable },
-      disabled: !editable,
+      disabled: !dragEnabled,
     });
 
   const style = transform
@@ -49,8 +57,17 @@ export function DraggableLeadCard({
   }
 
   return (
-    <div ref={setNodeRef} style={style} className="relative flex gap-1">
-      {editable && (
+    <div ref={setNodeRef} style={style} className="relative flex gap-1 items-stretch">
+      {batchEditActive && onToggleBatchSelect && (
+        <div className="shrink-0 flex items-start pt-3 pl-0.5">
+          <LeadBatchCheckbox
+            checked={batchSelected}
+            onChange={onToggleBatchSelect}
+            label={`Select ${lead.name}`}
+          />
+        </div>
+      )}
+      {dragEnabled && (
         <button
           type="button"
           aria-label="Drag to move lead"

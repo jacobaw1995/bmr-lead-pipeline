@@ -16,6 +16,9 @@ interface PipelineColumnProps {
   onBlocked: (message: string) => void;
   onOpenDetail: (lead: LeadWithOwner) => void;
   activeDragId: string | null;
+  batchEditActive?: boolean;
+  selectedIds?: Set<string>;
+  onToggleBatchSelect?: (leadId: string) => void;
 }
 
 export function PipelineColumn({
@@ -28,6 +31,9 @@ export function PipelineColumn({
   onBlocked,
   onOpenDetail,
   activeDragId,
+  batchEditActive = false,
+  selectedIds,
+  onToggleBatchSelect,
 }: PipelineColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: stageDroppableId(stage),
@@ -78,6 +84,13 @@ export function PipelineColumn({
               onBlocked={onBlocked}
               onOpenDetail={onOpenDetail}
               isDragging={activeDragId === `lead:${lead.id}`}
+              batchEditActive={batchEditActive}
+              batchSelected={selectedIds?.has(lead.id) ?? false}
+              onToggleBatchSelect={
+                onToggleBatchSelect
+                  ? () => onToggleBatchSelect(lead.id)
+                  : undefined
+              }
             />
           ))
         )}
