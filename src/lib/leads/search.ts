@@ -1,3 +1,4 @@
+import { STAGE_LABELS } from "@/lib/leads/constants";
 import { formatLeadSourceDisplay } from "@/lib/leads/sources";
 import { parseIntakeChecklist } from "@/lib/leads/intake-checklist";
 import { formatRoofTypes } from "@/lib/leads/roof-types";
@@ -184,6 +185,39 @@ export function extractUniqueCities(leads: LeadWithOwner[]): string[] {
     if (city) cities.add(city);
   }
   return Array.from(cities).sort((a, b) => a.localeCompare(b));
+}
+
+export function summarizeLeadFilters(
+  filters: LeadSearchFilters,
+  ownerNameById?: Record<string, string>
+): string {
+  const parts: string[] = [];
+
+  if (filters.query.trim()) {
+    parts.push(`search "${filters.query.trim()}"`);
+  }
+  if (filters.stage !== "all") {
+    parts.push(`stage ${STAGE_LABELS[filters.stage]}`);
+  }
+  if (filters.status !== "all") {
+    parts.push(`status ${filters.status.replace(/_/g, " ")}`);
+  }
+  if (filters.ownership === "mine") {
+    parts.push("owned by you");
+  } else if (filters.ownership === "unclaimed") {
+    parts.push("unclaimed");
+  } else if (filters.ownership !== "all") {
+    const name = ownerNameById?.[filters.ownership] ?? "selected rep";
+    parts.push(`owned by ${name}`);
+  }
+  if (filters.source !== "all") {
+    parts.push(`source ${filters.source}`);
+  }
+  if (filters.city !== "all") {
+    parts.push(`city ${filters.city}`);
+  }
+
+  return parts.length > 0 ? parts.join(" · ") : "current filter (all visible leads)";
 }
 
 export function extractUniqueOwners(

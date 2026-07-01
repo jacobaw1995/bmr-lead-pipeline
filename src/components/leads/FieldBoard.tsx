@@ -36,6 +36,7 @@ import {
   type FieldView,
 } from "@/lib/calendar/utils";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { BulkOwnerAssignBar } from "./BulkOwnerAssignBar";
 import { AddLeadModal } from "./AddLeadModal";
 import { LeadCard } from "./LeadCard";
 import {
@@ -264,13 +265,25 @@ export function FieldBoard({
         )}
 
         {!isCalendarView && (
-          <LeadSearchBar
-            leads={leads}
-            filters={searchFilters}
-            onFiltersChange={setSearchFilters}
-            filteredCount={filteredLeads.length}
-            isManager={isManager}
-          />
+          <>
+            <LeadSearchBar
+              leads={leads}
+              filters={searchFilters}
+              onFiltersChange={setSearchFilters}
+              filteredCount={filteredLeads.length}
+              isManager={isManager}
+            />
+            {isManager && (
+              <div className="px-4 py-2 border-b border-field-line/15 bg-field-dark/30">
+                <div className="max-w-7xl mx-auto">
+                  <BulkOwnerAssignBar
+                    filteredLeads={filteredLeads}
+                    filters={searchFilters}
+                  />
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         <div className="bg-field-dark/40 border-b border-field-line/30 px-4 py-4">

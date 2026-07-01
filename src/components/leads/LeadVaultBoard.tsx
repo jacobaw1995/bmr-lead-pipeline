@@ -14,6 +14,7 @@ import {
 import type { LeadWithOwner } from "@/lib/leads/types";
 import type { UserRole } from "@/types/database";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { BulkOwnerAssignBar } from "./BulkOwnerAssignBar";
 import { LeadDetailPanel } from "./LeadDetailPanel";
 import { LeadSearchBar } from "./LeadSearchBar";
 
@@ -71,15 +72,23 @@ export function LeadVaultBoard({
 
   return (
     <>
-      <div className="mb-4 rounded-xl border border-field-line/20 overflow-hidden">
-        <LeadSearchBar
-          leads={leads}
-          filters={searchFilters}
-          onFiltersChange={setSearchFilters}
-          filteredCount={filteredLeads.length}
-          isManager={isManager}
-          showStatusFilter
-        />
+      <div className="mb-4 space-y-3">
+        <div className="rounded-xl border border-field-line/20 overflow-hidden">
+          <LeadSearchBar
+            leads={leads}
+            filters={searchFilters}
+            onFiltersChange={setSearchFilters}
+            filteredCount={filteredLeads.length}
+            isManager={isManager}
+            showStatusFilter
+          />
+        </div>
+        {isManager && (
+          <BulkOwnerAssignBar
+            filteredLeads={filteredLeads}
+            filters={searchFilters}
+          />
+        )}
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2 text-[10px] uppercase tracking-wide text-field-cream/45">

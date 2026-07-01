@@ -881,6 +881,106 @@ export async function reassignLead(
   return { success: true };
 }
 
+export async function batchReassignLeads(
+  leadIds: string[],
+  newOwnerId: string | null
+): Promise<
+  | { success: true; updated: number; skipped: number }
+  | { success: false; error: string }
+> {
+  const uniqueIds = Array.from(new Set(leadIds.filter(Boolean)));
+  if (uniqueIds.length === 0) {
+    return { success: false, error: "No leads selected." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "You must be signed in." };
+  }
+
+  const role = await getActorRole(supabase, user.id);
+  if (role !== "manager") {
+    return { success: false, error: "Only managers can batch-assign leads." };
+  }
+
+  if (newOwnerId) {
+    const { data: rep } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", newOwnerId)
+      .single();
+
+    if (!rep) {
+      return { success: false, error: "Rep not found." };
+    }
+  }
+
+  const { data: leads, error: fetchError } = await supabase
+    .from("leads")
+    .select("id, status, owner_id")
+    .in("id", uniqueIds);
+
+  if (fetchError) {
+    return { success: false, error: fetchError.message };
+  }
+
+  const now = new Date().toISOString();
+  let updated = 0;
+  let skipped = 0;
+
+  for (const lead of leads ?? []) {
+    if (lead.status !== "active") {
+      skipped++;
+      continue;
+    }
+    if (lead.owner_id === newOwnerId) {
+      skipped++;
+      continue;
+    }
+
+    const { error: updateError } = await supabase
+      .from("leads")
+      .update({
+        owner_id: newOwnerId,
+        last_contacted_at: now,
+      })
+      .eq("id", lead.id);
+
+    if (updateError) {
+      return { success: false, error: updateError.message };
+    }
+
+    await supabase.from("lead_activity").insert({
+      lead_id: lead.id,
+      actor_id: user.id,
+      action: "reassigned",
+      from_value: lead.owner_id ?? "unclaimed",
+      to_value: newOwnerId ?? "unclaimed",
+    });
+
+    updated++;
+  }
+
+  skipped += uniqueIds.length - (leads?.length ?? 0);
+
+  if (updated === 0) {
+    return {
+      success: false,
+      error:
+        skipped > 0
+          ? "No active leads in this selection needed a new owner."
+          : "No leads were updated.",
+    };
+  }
+
+  revalidateLeadPaths();
+  return { success: true, updated, skipped };
+}
+
 export async function scheduleAppointment(
   leadId: string,
   appointmentType: AppointmentType,
